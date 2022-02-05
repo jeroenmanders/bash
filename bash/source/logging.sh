@@ -13,6 +13,7 @@ declare -A LOG_LEVELS=( ["TRACE"]=0 ["DEBUG"]=2 ["INFO"]=4 ["WARN"]=8 ["ERROR"]=
 function log_text() {
   local log_level="$1";
   local log_message="$2";
+
   local datepart=$(date +"%Y-%m-%d %H:%M:%S,%4N");
 
   if [ ! "${LOG_LEVELS[$log_level]}" ]; then
