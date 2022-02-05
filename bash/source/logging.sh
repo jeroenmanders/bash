@@ -15,12 +15,12 @@ function log_text() {
   local log_message="$2";
   local datepart=$(date +"%Y-%m-%d %H:%M:%S,%4N");
 
-  if [ ! ${LOG_LEVELS[$log_level]} ]; then 
+  if [ ! "${LOG_LEVELS[$log_level]}" ]; then
     log_message="[ INVALID LOG LEVEL!! ] $log_message";
   fi;
 
   # Check if the passed log_level is valid and show message always if it's not
-  if eval '[ ${'LOG_LEVELS'['$log_level']+dummy} ]'; then
+  if eval '[ ${'LOG_LEVELS'['"$log_level"']+dummy} ]'; then
     local message_level=${LOG_LEVELS["$log_level"]};
   else
     local message_level=${LOG_LEVELS["FATAL"]};
@@ -45,8 +45,8 @@ function log_text() {
     echo >&2;
   fi;
 
-  if [ $message_level -ge $enabled_level ]; then 
-    echo  "[$datepart] [`hostname`] [$log_level] [`whoami`] $log_message";
+  if [ "$message_level" -ge "$enabled_level" ]; then
+    echo  "[$datepart] [$(hostname)] [$log_level] [$(whoami)] $log_message";
   fi;
 }
 

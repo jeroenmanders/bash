@@ -33,13 +33,13 @@ function get_var() {
   log_debug "Value not found in environment, retrieving it from the YAML-file."
 
   # shellcheck disable=SC2155
-  local yaml_var_value="$(cat "$yaml_file" | yq "$yq_command")";
+  local yaml_var_value="$(< "$yaml_file" yq "$yq_command")";
 
   [[ "$yaml_var_value" == "null" ]] && yaml_var_value="";
   [[ -n "$yaml_var_value" ]] &&  export "$env_var_name"="$yaml_var_value" && return;
 
   log_debug "Value not found in YAML file, setting the default";
-  export $env_var_name="$default";
+  export "$env_var_name"="$default";
 }
 
 
