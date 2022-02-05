@@ -2,6 +2,7 @@
 
 set -euo pipefail;
 
+cd ..; # avoid that every script in .. needs to figure out its location
 . ./init.sh;
 . ./yaml.sh;
 
