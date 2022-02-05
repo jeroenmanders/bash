@@ -11,8 +11,10 @@ if [ "$SOURCE_SOURCED" == "true" ]; then
 else
   this_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )";
 
+  # shellcheck disable=SC2231
   for f in $this_dir/source/*.sh; do
-    source "$f"; 
+    # shellcheck source=/dev/null
+    source "$f";
   done;
   SOURCE_SOURCED="true";
 fi;

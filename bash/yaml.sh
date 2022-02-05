@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+# shellcheck disable=SC1091
 . ./init.sh;
 
 # get_var improvements:
@@ -27,14 +28,15 @@ function get_var() {
 
   local env_var_value="${!env_var_name-}";
 
-  [[ -n "$env_var_value" ]] && export $env_var_name="$env_var_value" && return;
+  [[ -n "$env_var_value" ]] && export "$env_var_name"="$env_var_value" && return;
 
   log_debug "Value not found in environment, retrieving it from the YAML-file."
 
+  # shellcheck disable=SC2155
   local yaml_var_value="$(cat "$yaml_file" | yq "$yq_command")";
-  
+
   [[ "$yaml_var_value" == "null" ]] && yaml_var_value="";
-  [[ -n "$yaml_var_value" ]] &&  export $env_var_name="$yaml_var_value" && return;
+  [[ -n "$yaml_var_value" ]] &&  export "$env_var_name"="$yaml_var_value" && return;
 
   log_debug "Value not found in YAML file, setting the default";
   export $env_var_name="$default";
