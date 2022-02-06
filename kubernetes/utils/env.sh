@@ -119,3 +119,56 @@ function remove_vm() {
   vboxmanage controlvm "$vm_name" poweroff
   vboxmanage unregistervm --delete "$vm_name"
 }
+
+# This function runs on the controller node
+function _generate_user_certs() {
+  [[ -z "$username" ]] && echo "Variable 'username' not set in _generate_user_certs!" && exit 1
+  [[ -z "$group" ]] && echo "Variable 'group' not set in _generate_user_certs!" && exit 1
+
+  echo "Creating certificate for user '$username' with group '$group'."
+  openssl genrsa -out "$username.key" 2048
+
+  openssl req -new -key "$username.key" \
+   -out "$username.csr" \
+   -subj "/CN=$username/O=$group"
+
+  sudo openssl x509 -req -in "$username.csr" \
+   -CA /etc/kubernetes/pki/ca.crt \
+   -CAkey /etc/kubernetes/pki/ca.key \
+   -CAcreateserial \
+   -out "$username.crt" -days 500
+}
+
+function create_kubernetes_user() {
+  local username="$1"
+  local group="${2:-admins}"
+
+  [[ -z "$username" ]] && log_fatal "Please provide the username as the first argument to function 'create_kubernetes_user'."
+
+  get_vm_ip kube-controller-1 # variable "IP"" now contains the IP of the controller VM
+
+  # shellcheck disable=SC2087
+  # shellcheck disable=SC2034
+  ssh packer@"$IP" << EOF
+    $(typeset -f _generate_user_certs)
+    username="$username" group="$group" _generate_user_certs
+EOF
+
+  log_info "Retrieving certs and copying them to $HOME/.kube/"
+  scp packer@"$IP":"$username".* ~/.kube/
+
+  log_info "Removing the certs from the controller."
+  ssh packer@"$IP" rm "$username".*
+
+  [[ -f ~/.kube/config ]] && cp ~/.kube/config ~/.kube/config.org.$$
+
+  log_info "Creating context '$username'."
+  kubectl config set-context "$username" --cluster=kubernetes --user "$username"
+
+  log_info "Setting credentials for '$username'."
+  kubectl config set-credentials "$username" \
+    --client-certificate="$HOME/.kube/$username.crt" \
+    --client-key="$HOME/.kube/$username.key"
+
+  echo "User and context created. Activate using 'kubectl config use-context $username"
+}
