@@ -1,0 +1,11 @@
+[Unit]
+Description=Bootstrap the server
+After=network-online.target
+
+[Service]
+ExecStart=/bin/sh -c "cd /opt/scripts; ./bootstrap.sh"
+Type=oneshot
+RemainAfterExit=no
+
+[Install]
+WantedBy=multi-user.target
