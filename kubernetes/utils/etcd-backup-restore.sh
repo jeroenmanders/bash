@@ -14,8 +14,8 @@ function get_etcd_pod() {
 }
 
 function get_etcd_url() {
- get_etcd_pod
- export ETCD_URL="$(kubectl get pod "$ETCD_POD" -n kube-system -o=jsonpath='{.spec.containers[0].command}' | jq -r '. []' | grep -e '^--advertise-client-urls=' | cut -d '=' -f 2)"
+  get_etcd_pod
+  export ETCD_URL="$(kubectl get pod "$ETCD_POD" -n kube-system -o=jsonpath='{.spec.containers[0].command}' | jq -r '. []' | grep -e '^--advertise-client-urls=' | cut -d '=' -f 2)"
 }
 
 function backup_etcd() {
@@ -63,5 +63,3 @@ function restore_etcd() {
   restore_static_pod_manifests
   rm -Rf default.etcd
 }
-
-
