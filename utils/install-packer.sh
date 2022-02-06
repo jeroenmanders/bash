@@ -1,24 +1,28 @@
 #!/usr/bin/env bash
 
+this_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )";
+cd "$this_dir";
+
 . ./env.sh;
 
-function install_virtualbox() {
-  log_info "Downloading Virtualbox for Ubuntu 19+.";
-  curl -so virtualbox.deb https://download.virtualbox.org/virtualbox/6.1.32/virtualbox-6.1_6.1.32-149290~Ubuntu~eoan_amd64.deb
-  curl -sO https://www.virtualbox.org/download/oracle_vbox_2016.asc;
+function ensure_packer() {
+  # PACKER_VERSION is set in bash/init.sh;
+  local zip_file="packer_${PACKER_VERSION}_linux_amd64.zip";
+  local url="https://releases.hashicorp.com/packer/$PACKER_VERSION/$zip_file";
 
-  log_info "Downloading VirtualBox extension pack.";
-  curl -sO https://download.virtualbox.org/virtualbox/6.1.32/Oracle_VM_VirtualBox_Extension_Pack-6.1.32.vbox-extpack
+  export PACKER="$REPO_DIR/local-resources/bin/packer-$PACKER_VERSION";
+  [[ -f "$PACKER" ]] && log_warn "$PACKER already exists. Using it instead of downloading a new binary." && return;
 
-  echo "deb [arch=amd64] https://download.virtualbox.org/virtualbox/debian xenial contrib" | sudo tee -a /etc/apt/sources.list
+  log_info "Downloading $zip_file from $url.";
+  curl -sLo "$zip_file" "$url";
 
-  sudo apt-key add oracle_vbox_2016.asc;
-  sudo apt-get update;
-  sudo apt-get install -y ./virtualbox.deb;
+  log_info "Extracting archive.";
+  unzip "$zip_file";
+  mv packer "$PACKER";
+  rm -Rf "$zip_file";
 
-  sudo vboxmanage extpack install ./Oracle_VM_VirtualBox_Extension_Pack-6.1.32.vbox-extpack
-
-  rm virtualbox.deb oracle_vbox_2016.asc Oracle_VM_VirtualBox_Extension_Pack-6.1.32.vbox-extpack;
+  log_info "Using Packer:";
+  $PACKER --version;
 }
 
-install_virtualbox;
+ensure_packer;
