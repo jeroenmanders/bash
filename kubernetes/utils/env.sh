@@ -11,9 +11,9 @@ REPO_DIR="$(git rev-parse --show-toplevel)"
 # Currently just one cluster can be configured.
 #  Use something like the following to support multiple clusters:
 #  '.kubernetes .clusters [] | select(.name-prefix == "kube") .main-user'
-get_var "VM_NAME_PREFIX" "../settings.local.yml" ".kubernetes .clusters[0] .name-prefix" "";
-get_var "OS_USERNAME" "../settings.local.yml" ".kubernetes  .clusters[0] .main-user" "";
-get_var "AUTOSTART_VMS" "../settings.local.yml" ".virtualbox .autostart-vms" "true";
+get_var "VM_NAME_PREFIX" "../settings.local.yml" ".kubernetes .clusters[0] .name-prefix" ""
+get_var "OS_USERNAME" "../settings.local.yml" ".kubernetes  .clusters[0] .main-user" ""
+get_var "AUTOSTART_VMS" "../settings.local.yml" ".virtualbox .autostart-vms" "true"
 OVA_FILE="$REPO_DIR/local-resources/virtualbox/kubernetes-base/kubernetes-base.ovf"
 
 CONTROLLER="$VM_NAME_PREFIX-controller"
@@ -82,28 +82,28 @@ function setup_cluster() {
 }
 
 function create_vm() {
-  local vm_name="$1";
-  local host_type="$2";
+  local vm_name="$1"
+  local host_type="$2"
 
-  log_info "Importing $OVA_FILE for $vm_name.";
-  vboxmanage import "$OVA_FILE" --vsys 0 --vmname "$vm_name";
+  log_info "Importing $OVA_FILE for $vm_name."
+  vboxmanage import "$OVA_FILE" --vsys 0 --vmname "$vm_name"
 
   log_info "Adding second adapter.".
-  vboxmanage modifyvm "$vm_name" --nic2 hostonly --hostonlyadapter2 vboxnet0;
+  vboxmanage modifyvm "$vm_name" --nic2 hostonly --hostonlyadapter2 vboxnet0
 
   if [ "$AUTOSTART_VMS" == "true" ]; then
-    log_info "Enabling autostart";
-    vboxmanage modifyvm "$vm_name" --autostart-enabled on;
+    log_info "Enabling autostart"
+    vboxmanage modifyvm "$vm_name" --autostart-enabled on
   else
-    log_info "Not enabled autostart because AUTOSTART_VMS is '$AUTOSTART_VMS'.";
-  fi;
+    log_info "Not enabled autostart because AUTOSTART_VMS is '$AUTOSTART_VMS'."
+  fi
 
-  log_info "Setting guest host-name and type.";
-  vboxmanage guestproperty set "$vm_name" host-name "$vm_name";
-  vboxmanage guestproperty set "$vm_name" host-type "$host_type";
+  log_info "Setting guest host-name and type."
+  vboxmanage guestproperty set "$vm_name" host-name "$vm_name"
+  vboxmanage guestproperty set "$vm_name" host-type "$host_type"
 
-  log_info "Starting VM $vm_name.";
-  vboxmanage startvm "$vm_name" --type=headless;
+  log_info "Starting VM $vm_name."
+  vboxmanage startvm "$vm_name" --type=headless
 }
 
 function remove_cluster() {
