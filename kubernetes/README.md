@@ -39,4 +39,8 @@ REPO_DIR="$(git rev-parse --show-toplevel)";
 
 The necessary files will be downloaded if they aren't available yet.  
 
+### Creating the Kubernetes cluster
 
+This involves the following steps:
+- Copy `settings.local.example.yml` to `kubernetes/settings.local.yml` and adjust its values.
+- Execute `./setup-cluster.sh` in the utils-directory.

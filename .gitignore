@@ -1,3 +1,4 @@
 *.local
+*.local.yml
 .idea
 local-resources/
