@@ -24,4 +24,31 @@ function install_virtualbox() {
   rm virtualbox.deb oracle_vbox_2016.asc Oracle_VM_VirtualBox_Extension_Pack-6.1.32.vbox-extpack
 }
 
-install_virtualbox
+function configure_virtualbox() {
+ log_info "Configuring auto-start";
+ cat >> /etc/default/virtualbox << EOF
+VBOXAUTOSTART_DB=/etc/vbox
+VBOXAUTOSTART_CONFIG=/etc/vbox/autostartvm.cfg
+EOF
+ mkdir -p /etc/vbox;
+ cat >> /etc/vbox/autostartvm.cfg << EOF
+default_policy = deny
+
+jeroen = {
+    allow = true
+    startup_delay = 10
+}
+EOF
+
+  usermod -aG vboxusers jeroen
+  chgrp vboxusers /etc/vbox
+  chmod g+w /etc/vbox
+  chmod +t /etc/vbox
+
+  vboxmanage setproperty autostartdbpath /etc/vbox/;
+
+}
+
+install_virtualbox;
+
+log_info "Adjust and run the code in function 'configure_virtualbox' to automate VBox startup.";
