@@ -5,7 +5,7 @@ It will create one controller and two workers.
 
 This has been tested on Ubuntu 20.04 LTS.
 
-# Prerequisites
+## Prerequisites
 
 - `git`, `jq` and `yq` are installed. (run `utils/install-utils.sh` to install these)
 
@@ -31,7 +31,7 @@ REPO_DIR="$(git rev-parse --show-toplevel)";
 ### Create a base VirtualBox OVF
 
 > Any existing files under <REPO_DIR>/local-resources/virtualbox/kubernetes-base will be removed!
-- 
+
 - Open directory "kubernetes/virtualbox/kubernetes-base-image".
 - Make sure you have an SSH-key file. You can create one using `ssh-keygen -t ed25519 -C jeroen@manders.be`.
 - Copy `variables.auto.pkrvars.hcl.example` to `variables.auto.pkrvars.hcl` and update its contents.
