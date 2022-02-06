@@ -1,0 +1,10 @@
+os_username = "jeroen"
+os_user_pub_key = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAACAQCiOzUkYM8ng95a8iAYxgZU4GjHuBHHG/qCCnZdF417tpTOLgbKOWHwXaQDxP/QI2a/L36fGdgLZUFuye3XwavN2JDF2LsfrKVsoIlYASc9Mf02I1BcNW/Q5QdLspXdWLGy4gbi0sy41P3k2lP/5ALc6D0zsDBMyOivgAPg8EvnhOICbxc6YpmSSOMIx2ifQCilooTrpSxL2+MLWN6ZKraG1FMfKEv/+oSFDEhQwO6xvwqx5mo64a+Pj0zoXw1VjdM2H0cQ4bvhJSF/smKOENH8JY5r3sElxB83Eub4qek5BZO1nxWa1EHe7onSywvVO0seeontLGDh2aHoK0NYY9Lus9uYOuvKQjua99ttnnsYkCrw8+bzx/4XNBxlcsu2z/OhPgoatRAZHmzRWJPkcb9dxaH5/88LBTk10O4l2k+xBJBqkdZmkT/YFD3BuDnBf/S6JZtSoMCEWuXC2WqfHt/Y3+Aoql7M6JRv7zzQWovgFJwAzDQEZv8TIY+V7qBPcnbU0mTaa2GSo6xAggVltMfUuHWeW+pB0PNMHxoS1oWiOTQy9KIDQtrSD6MBGIxMphQOz68pKDDTTLAR+/yxnrlBYfTmH6nW1nfesiZcafV8n5R8Vt48d6mpePm+rZ1C6fToBr8hmXM6Jjd9HScHNNN7MuoTkU2gq83iZOqYDP4SXw== jeroen@jmu"
+
+iso_urls = [
+  "../iso/ubuntu-20.04.1-legacy-server-amd64.iso",
+  "http://cdimage.ubuntu.com/ubuntu-legacy-server/releases/20.04/release/ubuntu-20.04.1-legacy-server-amd64.iso"
+]
+iso_checksum = "sha256:f11bda2f2caed8f420802b59f382c25160b114ccc665dbac9c5046e7fceaced2"
+iso_target_path = "../iso/ubuntu-20.04.1-legacy-server-amd64.iso"
+output_directory = "../../virtualbox-images"
