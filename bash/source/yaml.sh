@@ -17,6 +17,7 @@ function get_var() {
   local yaml_file="$2"
   local yq_command="$3"
   local default="${4- }"
+  local fatal_if_not_found="${5-false}"
 
   [[ -z "$env_var_name" ]] && usage && log_fatal && "First argument to get_var should be the environment variable name!"
   [[ -z "$yaml_file" ]] && usage && log_fatal && "Second argument to get_var should be the yaml file path!"
@@ -33,6 +34,10 @@ function get_var() {
 
   [[ "$yaml_var_value" == "null" ]] && yaml_var_value=""
   [[ -n "$yaml_var_value" ]] && export "$env_var_name"="$yaml_var_value" && return
+
+  if [ "$fatal_if_not_found" == "true" ]; then
+    log_fatal "Variable '$env_var_name' not found in the environment and not under '$yq_command' in '$yaml_file'. Exiting."
+  fi
 
   log_debug "Value not found in YAML file, setting the default"
   export "$env_var_name"="$default"
