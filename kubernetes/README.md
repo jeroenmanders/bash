@@ -15,7 +15,7 @@ This has been tested on Ubuntu 20.04 LTS.
 
 Don't use `apt-get install -y virtualbox-6.1` because it's missing some resources.  
 
-Run the following script from withing to repository folder:
+Run the following script from within the repository folder:
 ```shell
 REPO_DIR="$(git rev-parse --show-toplevel)";
 "$REPO_DIR/utils/install-virtualbox.sh";
