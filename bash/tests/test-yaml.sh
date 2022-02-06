@@ -21,6 +21,8 @@ function cleanup() {
   end_tests;
 }
 
+# shellcheck disable=SC2034
+# shellcheck disable=SC2016
 function test_yaml() {
   prepare;
   set -e;

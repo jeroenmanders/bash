@@ -1,6 +1,6 @@
 # Kubernetes on VirtualBox
 
-This module contains everything necessary to setup a Kubernetes cluster under VirtualBox.  
+This module contains everything necessary to set up a Kubernetes cluster under VirtualBox.  
 It will create one controller and two workers.
 
 This has been tested on Ubuntu 20.04 LTS.

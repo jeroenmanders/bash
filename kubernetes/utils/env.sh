@@ -6,7 +6,7 @@ this_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$this_dir"
 
 REPO_DIR="$(git rev-parse --show-toplevel)"
-. $REPO_DIR/bash/init.sh
+. "$REPO_DIR"/bash/init.sh
 
 # Currently just one cluster can be configured.
 #  Use something like the following to support multiple clusters:
@@ -55,18 +55,18 @@ function setup_cluster() {
   create_vm "$WORKER-2" worker "join-command"
 
   local started_at_second=$(date +%s)
-  local fail_at_second=$(expr $started_at_second + 900) # timeout after 15 minutes
+  local fail_at_second=$(( started_at_second + 900 )) # timeout after 15 minutes
   echo -e "Waiting for controller setup ."
   while [ "$join_command_2" == "" ]; do
-    local join_command_with_value="$(vboxmanage guestproperty get $CONTROLLER-1 join-command-2)"
+    local join_command_with_value="$(vboxmanage guestproperty get "$CONTROLLER-1" join-command-2)"
     local current_second=$(date +%s)
-    if [ $current_second -gt $fail_at_second ]; then
+    if [ "$current_second" -gt "$fail_at_second" ]; then
       log_info "Timeout waiting for the cluster to get initialized. Aborting."
       exit 1
     fi
     if [ -n "$join_command_with_value" ]; then
       join_command_2="${join_command_with_value#"Value: "}"
-      join_command_with_value="$(vboxmanage guestproperty get $CONTROLLER-1 join-command-1)"
+      join_command_with_value="$(vboxmanage guestproperty get "$CONTROLLER-1" join-command-1)"
       join_command_1="${join_command_with_value#"Value: "}"
     fi
     sleep 5
@@ -75,10 +75,10 @@ function setup_cluster() {
   log_info "Setting join-command-1 for worker machines to '$join_command_1'"
   log_info "Setting join-command-2 for worker machines to '$join_command_2'"
 
-  vboxmanage guestproperty set $WORKER-1 join-command-1 "$join_command_1"
-  vboxmanage guestproperty set $WORKER-1 join-command-2 "$join_command_2"
-  vboxmanage guestproperty set $WORKER-2 join-command-1 "$join_command_1"
-  vboxmanage guestproperty set $WORKER-2 join-command-2 "$join_command_2"
+  vboxmanage guestproperty set "$WORKER-1" join-command-1 "$join_command_1"
+  vboxmanage guestproperty set "$WORKER-1" join-command-2 "$join_command_2"
+  vboxmanage guestproperty set "$WORKER-2" join-command-1 "$join_command_1"
+  vboxmanage guestproperty set "$WORKER-2" join-command-2 "$join_command_2"
 }
 
 function create_vm() {
@@ -86,36 +86,36 @@ function create_vm() {
   local host_type="$2";
 
   log_info "Importing $OVA_FILE for $vm_name.";
-  vboxmanage import $OVA_FILE --vsys 0 --vmname $vm_name;
+  vboxmanage import "$OVA_FILE" --vsys 0 --vmname "$vm_name";
 
   log_info "Adding second adapter.".
-  vboxmanage modifyvm $vm_name --nic2 hostonly --hostonlyadapter2 vboxnet0;
+  vboxmanage modifyvm "$vm_name" --nic2 hostonly --hostonlyadapter2 vboxnet0;
 
   if [ "$AUTOSTART_VMS" == "true" ]; then
     log_info "Enabling autostart";
-    vboxmanage modifyvm $vm_name --autostart-enabled on;
+    vboxmanage modifyvm "$vm_name" --autostart-enabled on;
   else
     log_info "Not enabled autostart because AUTOSTART_VMS is '$AUTOSTART_VMS'.";
   fi;
 
   log_info "Setting guest host-name and type.";
-  vboxmanage guestproperty set $vm_name host-name "$vm_name";
-  vboxmanage guestproperty set $vm_name host-type $host_type;
+  vboxmanage guestproperty set "$vm_name" host-name "$vm_name";
+  vboxmanage guestproperty set "$vm_name" host-type "$host_type";
 
   log_info "Starting VM $vm_name.";
-  vboxmanage startvm $vm_name --type=headless;
+  vboxmanage startvm "$vm_name" --type=headless;
 }
 
 function remove_cluster() {
-  read -p "Are you sure you want to remove the virtual machines? [y/N]: " answer
+  read -rp "Are you sure you want to remove the virtual machines? [y/N]: " answer
   [[ "$answer" != "y" ]] && log_info "Answer was not 'y' so quitting." && exit 1
-  remove_vm $CONTROLLER-1
-  remove_vm $WORKER-1
-  remove_vm $WORKER-2
+  remove_vm "$CONTROLLER-1"
+  remove_vm "$WORKER-1"
+  remove_vm "$WORKER-2"
 }
 
 function remove_vm() {
   local vm_name="$1"
-  vboxmanage controlvm $vm_name poweroff
-  vboxmanage unregistervm --delete $vm_name
+  vboxmanage controlvm "$vm_name" poweroff
+  vboxmanage unregistervm --delete "$vm_name"
 }

@@ -4,3 +4,6 @@ disable=SC1091
 
 # Declare and assign separately to avoid masking return values
 disable=SC2155
+
+# Can't follow non-constant source. Use a directive to specify location
+disable=SC1090

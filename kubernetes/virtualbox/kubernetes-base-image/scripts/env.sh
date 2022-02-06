@@ -10,7 +10,7 @@ export OS_USER_PUB_KEY="${2:- }";
 function get_guest_property() {
   local name="$1";
   echo "Getting guest property '$name'";
-  local with_value="$(VBoxControl --nologo guestproperty get $name)";
+  local with_value="$(VBoxControl --nologo guestproperty get "$name")";
 
   if [[ "$with_value" != "Value: "* ]]; then
     echo "Guest property '$name' not found.";
@@ -149,8 +149,8 @@ function init_cluster() {
   echo "Configuring kubeconfig for root.";
   export KUBECONFIG=/root/.kube/config;
   mkdir -p /root/.kube;
-  cp -i /etc/kubernetes/admin.conf $KUBECONFIG;
-  chown $(id -u):$(id -g) $KUBECONFIG;
+  cp -i /etc/kubernetes/admin.conf "$KUBECONFIG";
+  chown "$(id -u):$(id -g)" "$KUBECONFIG";
 
   echo "Installing Calico.";
   kubectl apply -f https://docs.projectcalico.org/manifests/calico.yaml;
@@ -179,14 +179,14 @@ function init_server() {
   modprobe br_netfilter;
 
   local started_at_second=$(date +%s)
-  local fail_at_second=$(expr $started_at_second + 300); # timeout after 5 minutes
+  local fail_at_second=$(( started_at_second + 300 )); # timeout after 5 minutes
   export IP="";
   echo "Retrieving the IP where the cluster will listen on";
   ip -4 addr show
   echo -e "Waiting ."
   while [ "$IP" == "" ]; do
     local current_second=$(date +%s);
-    if [ $current_second -gt $fail_at_second ]; then
+    if [ "$current_second" -gt "$fail_at_second" ]; then
       echo "Timeout waiting for an IP-address on enp0s8. Aborting."
       exit 1;
     fi;
@@ -197,7 +197,7 @@ function init_server() {
   echo "Using IP: $IP";
 
   echo "Setting hostname to '$HOST_NAME'";
-  hostnamectl set-hostname $HOST_NAME;
+  hostnamectl set-hostname "$HOST_NAME";
   echo "$IP $HOST_NAME" >> /etc/hosts
 }
 
@@ -207,17 +207,17 @@ function join_cluster() {
 
   mkdir -p /var/lib/calico;
   echo "--- HOST_NAME for calico: = $HOST_NAME"
-  echo $HOST_NAME > /var/lib/calico/nodename;
+  echo "$HOST_NAME" > /var/lib/calico/nodename;
   echo "Running the join command provided by the server (get it using: 'kubeadm token create --print-join-command')"
   local started_at_second=$(date +%s)
-  local fail_at_second=$(expr $started_at_second + 900); # timeout after 15 minutes
+  local fail_at_second=$(( started_at_second + 900 )); # timeout after 15 minutes
   echo -e "Waiting ."
   local JOIN_COMMAND="";
   local JOIN_COMMAND_1="";
   local JOIN_COMMAND_2="";
   while [ "$JOIN_COMMAND" == "" ]; do
     local current_second=$(date +%s);
-    if [ $current_second -gt $fail_at_second ]; then
+    if [ "$current_second" -gt "$fail_at_second" ]; then
       echo "Timeout waiting for the join-command guest property to be set. Aborting."
       exit 1;
     fi;
@@ -237,11 +237,11 @@ function join_cluster() {
 
 function create_os_user() {
   echo "Creating OS user $OS_USERNAME.";
-  useradd -s /usr/bin/bash $OS_USERNAME;
-  echo "%$OS_USERNAME ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers.d/$OS_USERNAME;
+  useradd -s /usr/bin/bash "$OS_USERNAME";
+  echo "%$OS_USERNAME ALL=(ALL) NOPASSWD: ALL" >> "/etc/sudoers.d/$OS_USERNAME";
   local user_home="$(eval echo ~"$OS_USERNAME")";
   mkdir -p "$user_home/.ssh";
-  chown $OS_USERNAME "$user_home/.ssh";
-  [ -n "$OS_USER_PUB_KEY" ] && echo $OS_USER_PUB_KEY >> $user_home/.ssh/authorized_keys;
-  cp vimrc.temp $user_home/.vimrc;
+  chown "$OS_USERNAME" "$user_home/.ssh";
+  [ -n "$OS_USER_PUB_KEY" ] && echo "$OS_USER_PUB_KEY" >> "$user_home/.ssh/authorized_keys";
+  cp vimrc.temp "$user_home/.vimrc";
 }
