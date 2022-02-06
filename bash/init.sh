@@ -10,7 +10,7 @@ SOURCE_SOURCED="${SOURCE_SOURCED-false}"
 if [ "$SOURCE_SOURCED" == "true" ]; then
   log_debug "files under source/* already sourced." # only source scripts once
 else
-  bash_dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+  bash_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
   for f in "$bash_dir"/source/*.sh; do
     # shellcheck source=/dev/null
     source "$f"

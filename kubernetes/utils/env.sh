@@ -55,7 +55,7 @@ function setup_cluster() {
   create_vm "$WORKER-2" worker "join-command"
 
   local started_at_second=$(date +%s)
-  local fail_at_second=$(( started_at_second + 900 )) # timeout after 15 minutes
+  local fail_at_second=$((started_at_second + 900)) # timeout after 15 minutes
   echo -e "Waiting for controller setup ."
   while [ "$join_command_2" == "" ]; do
     local join_command_with_value="$(vboxmanage guestproperty get "$CONTROLLER-1" join-command-2)"

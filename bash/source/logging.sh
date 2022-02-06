@@ -8,7 +8,7 @@
 
 export LOG_LEVEL="INFO"
 
-declare -A LOG_LEVELS=( ["TRACE"]=0 ["DEBUG"]=2 ["INFO"]=4 ["WARN"]=8 ["ERROR"]=16 ["FATAL"]=32 )
+declare -A LOG_LEVELS=(["TRACE"]=0 ["DEBUG"]=2 ["INFO"]=4 ["WARN"]=8 ["ERROR"]=16 ["FATAL"]=32)
 
 function log_text() {
   local log_level="$1"
@@ -47,28 +47,28 @@ function log_text() {
   fi
 
   if [ "$message_level" -ge "$enabled_level" ]; then
-    echo  "[$datepart] [$(hostname)] [$log_level] [$(whoami)] $log_message"
+    echo "[$datepart] [$(hostname)] [$log_level] [$(whoami)] $log_message"
   fi
 }
 
 function log_trace() {
-	log_text "TRACE" "$1"
+  log_text "TRACE" "$1"
 }
 
 function log_debug() {
-	log_text "DEBUG" "$1"
+  log_text "DEBUG" "$1"
 }
 
 function log_info() {
-	log_text "INFO" "$1"
+  log_text "INFO" "$1"
 }
 
 function log_warn() {
-	log_text "WARN" "$1"
+  log_text "WARN" "$1"
 }
 
 function log_error() {
-	local message="$(log_text "ERROR" "$1")"
+  local message="$(log_text "ERROR" "$1")"
   echo "$message" >&2
 }
 
@@ -77,4 +77,3 @@ function log_fatal() {
   echo "$message" >&2
   exit 1
 }
-

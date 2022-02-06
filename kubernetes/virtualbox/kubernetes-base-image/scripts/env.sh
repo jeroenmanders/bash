@@ -100,7 +100,7 @@ function prepare_startup_script() {
 
 function configure_network() {
   echo "Ubuntu doesn't detect the host-only network interface automatically, so adding it here. TODO: can't this be done in a proper way?"
-  cat >> /etc/netplan/01-netcfg.yaml << EOF
+  cat >>/etc/netplan/01-netcfg.yaml <<EOF
 
     enp0s8:
       addresses: []
@@ -179,7 +179,7 @@ function init_server() {
   modprobe br_netfilter
 
   local started_at_second=$(date +%s)
-  local fail_at_second=$(( started_at_second + 300 )) # timeout after 5 minutes
+  local fail_at_second=$((started_at_second + 300)) # timeout after 5 minutes
   export IP=""
   echo "Retrieving the IP where the cluster will listen on"
   ip -4 addr show
@@ -198,7 +198,7 @@ function init_server() {
 
   echo "Setting hostname to '$HOST_NAME'"
   hostnamectl set-hostname "$HOST_NAME"
-  echo "$IP $HOST_NAME" >> /etc/hosts
+  echo "$IP $HOST_NAME" >>/etc/hosts
 }
 
 function join_cluster() {
@@ -207,10 +207,10 @@ function join_cluster() {
 
   mkdir -p /var/lib/calico
   echo "--- HOST_NAME for calico: = $HOST_NAME"
-  echo "$HOST_NAME" > /var/lib/calico/nodename
+  echo "$HOST_NAME" >/var/lib/calico/nodename
   echo "Running the join command provided by the server (get it using: 'kubeadm token create --print-join-command')"
   local started_at_second=$(date +%s)
-  local fail_at_second=$(( started_at_second + 900 )) # timeout after 15 minutes
+  local fail_at_second=$((started_at_second + 900)) # timeout after 15 minutes
   echo -e "Waiting ."
   local JOIN_COMMAND=""
   local JOIN_COMMAND_1=""
@@ -238,10 +238,10 @@ function join_cluster() {
 function create_os_user() {
   echo "Creating OS user $OS_USERNAME."
   useradd -s /usr/bin/bash "$OS_USERNAME"
-  echo "%$OS_USERNAME ALL=(ALL) NOPASSWD: ALL" >> "/etc/sudoers.d/$OS_USERNAME"
+  echo "%$OS_USERNAME ALL=(ALL) NOPASSWD: ALL" >>"/etc/sudoers.d/$OS_USERNAME"
   local user_home="$(eval echo ~"$OS_USERNAME")"
   mkdir -p "$user_home/.ssh"
   chown "$OS_USERNAME" "$user_home/.ssh"
-  [ -n "$OS_USER_PUB_KEY" ] && echo "$OS_USER_PUB_KEY" >> "$user_home/.ssh/authorized_keys"
+  [ -n "$OS_USER_PUB_KEY" ] && echo "$OS_USER_PUB_KEY" >>"$user_home/.ssh/authorized_keys"
   cp vimrc.temp "$user_home/.vimrc"
 }

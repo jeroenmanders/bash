@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+cd .. # avoid that every script in .. needs to figure out its location
+. ./init.sh
+
 function begin_tests() {
   export TEST_ERRORS=0
   export tests_started_on=$(date +%s)
@@ -13,13 +16,13 @@ function begin_test() {
 
 function end_test() {
   local test_ended_on=$(date +%s)
-  local duration=$(( test_ended_on - test_started_on ))
+  local duration=$((test_ended_on - test_started_on))
   echo -e "\tTest took $duration seconds."
 }
 
 function end_tests() {
   local tests_ended_on=$(date +%s)
-  local duration=$(( tests_ended_on - tests_started_on ))
+  local duration=$((tests_ended_on - tests_started_on))
   echo -e "\nTests took $duration seconds."
 
   if [ "$TEST_ERRORS" != "0" ]; then
@@ -31,9 +34,9 @@ function end_tests() {
 assert() {
   # shellcheck disable=SC2048
   # shellcheck disable=SC2086
-  if ! eval $* ; then
-      echo -e "\n===== Assertion failed:  \"$*\" ====="
-      echo -e "\tLocation: line:$(caller 0)"
-      TEST_ERRORS=$(( TEST_ERRORS + 1 ))
+  if ! eval $*; then
+    echo -e "\n===== Assertion failed:  \"$*\" ====="
+    echo -e "\tLocation: line:$(caller 0)"
+    TEST_ERRORS=$((TEST_ERRORS + 1))
   fi
 }

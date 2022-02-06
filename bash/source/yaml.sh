@@ -6,9 +6,9 @@
 function get_var_usage() {
   echo "Usage: get_var <environment variable name> <yaml file> <yq expression> [default value]"
   echo "Example: get_var TEST_VAR './env.yaml' '.test-parent .test-var' 'Not set'
-  echo "  This will set environment variable TEST_VAR to:"
-  echo "    - The current environment variable with name TEST_VAR if it exists."
-  echo "    - Otherwise the value of attribute 'test-var' under 'test-parent' in YAML-file './env.yaml'
+  echo " This will set environment variable TEST_VAR to:"
+  echo " - The current environment variable with name TEST_VAR if it exists."
+  echo " - Otherwise the value of attribute 'test-var' under 'test-parent' in YAML-file './env.yaml'
   echo "    - If it's still empty, then the default value will be used (if not set, an empty string is used)."
 }
 
@@ -29,13 +29,11 @@ function get_var() {
 
   log_debug "Value not found in environment, retrieving it from the YAML-file."
 
-  local yaml_var_value="$(< "$yaml_file" yq "$yq_command")"
+  local yaml_var_value="$(yq <"$yaml_file" "$yq_command")"
 
   [[ "$yaml_var_value" == "null" ]] && yaml_var_value=""
-  [[ -n "$yaml_var_value" ]] &&  export "$env_var_name"="$yaml_var_value" && return
+  [[ -n "$yaml_var_value" ]] && export "$env_var_name"="$yaml_var_value" && return
 
   log_debug "Value not found in YAML file, setting the default"
   export "$env_var_name"="$default"
 }
-
-
