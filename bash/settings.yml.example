@@ -1,0 +1,5 @@
+# Override default versions by copying this file to "settings.yml"
+#   Installing these version can be done using the scripts under REPO_DIR/utils
+versions:
+  terraform: 1.1.5
+  packer: 1.7.8

@@ -60,11 +60,11 @@ function log_debug() {
 }
 
 function log_info() {
-	log_text "INFO " "$1";
+	log_text "INFO" "$1";
 }
 
 function log_warn() {
-	log_text "WARN " "$1";
+	log_text "WARN" "$1";
 }
 
 function log_error() {

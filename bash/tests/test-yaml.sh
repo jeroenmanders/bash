@@ -4,7 +4,6 @@ set -euo pipefail;
 
 cd ..; # avoid that every script in .. needs to figure out its location
 . ./init.sh;
-. ./yaml.sh;
 
 YAML_FILE="/tmp/test-yaml.yaml";
 YAML_VALUE="YAML value";
@@ -31,7 +30,7 @@ function test_yaml() {
     get_var "ENV_VAR" "$YAML_FILE" ".parent .var-value" "Default value";
     assert [[ '$ENV_VAR' == '$value' ]];
   end_test;
- 
+
   begin_test "without environment variable, but with yaml value.";
     unset ENV_VAR;
     get_var "ENV_VAR" "$YAML_FILE" ".parent .var-value" "Default value";

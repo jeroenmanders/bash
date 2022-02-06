@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
 
-. ./init.sh;
-
 # get_var improvements:
 #   - Environment variables with an empty value are not detected so that the value is retrieved from the YAML-file.
 
