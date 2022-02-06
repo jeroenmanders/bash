@@ -159,6 +159,11 @@ function init_cluster() {
 
   #echo -e "\n --- Enabling the kubelet service ---\n"
   #systemctl enable kubelet
+  echo "Copying kubernetes-admin kubeconfig to $OS_USERNAME."
+  local user_home="$(eval echo ~"$OS_USERNAME")"
+  mkdir -p "$user_home/.kube"
+  cp "$KUBECONFIG" "$user_home/.kube/"
+  chown -R "$OS_USERNAME" "$user_home/.kube"
 
   echo -e "\n The cluster should be ready (control plane might still be in 'NotReady').:\n"
   kubectl get nodes
