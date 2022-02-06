@@ -2,3 +2,4 @@
 *.local.yml
 .idea
 local-resources/
+*-VBoxHeadless-*.log
