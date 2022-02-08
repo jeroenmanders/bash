@@ -245,6 +245,7 @@ EOF
 function add_cluster_user() {
   local group="$1"
   local username="$2"
+  local user_home="$(eval echo ~)"
 
   [[ -z "$group" ]] && log_fatal "Please provide the group as the first argument to function 'add_cluster_user'."
   [[ -z "$username" ]] && log_fatal "Please provide the username as the second argument to function 'add_cluster_user'."
@@ -267,25 +268,67 @@ EOF
 
   [[ -f ~/.kube/config ]] && cp ~/.kube/config ~/.kube/config.org.$$
 
-# Improvement: add new kubeconfig to the KUBECONFIG environment variable, of import the new one in ~/.kube/kubeconfig
-#
-#  CLIENT_CERTIFICATE_DATA="$(cat ~/.kube/"$username.csr")"
-#  echo "$CLUSTER_CA" >~/.kube/$username.cluster_ca
-#
-#  if kubectl config get-clusters | grep '^'$CLUSTER_NAME'$'; then
-#    log_warn "Cluster '$CLUSTER_NAME' already registered in kubeconfig. Not overwritting it."
-#  else
-#    log_info "Creating context '$username' for cluster '$CLUSTER_NAME'."
-#    local home="$(eval echo ~)"
-#    kubectl config set-context "$username" --cluster=$CLUSTER_NAME --user "$username"
-#    kubectl config set-cluster "$CLUSTER_NAME" --server="$CLUSTER_ENDPOINT" \
-#      --certificate-authority="$home/.kube/$username.csr" --embed-certs=true
-#  fi
-#
-#  log_info "Setting credentials for '$username'."
-#  kubectl config set-credentials "$username" \
-#    --client-certificate="$HOME/.kube/$username.crt" \
-#    --client-key="$HOME/.kube/$username.key"
+  import_kubeconfig ~/.kube/"kubeconfig-$username" "$user_home/.kube/config"
+}
 
-  #echo "Admin user and context created. Activate using 'kubectl config use-context $username'"
+function import_kubeconfig() {
+  local source_config="$1"
+  local target_config="$2"
+
+  [[ -z "$source_config" ]] && echo "First argument to import_kubeconfig should be the source kubeconfig file path." && return 1
+  [[ -z "$target_config" ]] && echo "Second argument to import_kubeconfig should be the target kubeconfig file path." && return 1
+
+  [[ ! -s "$source_config" ]] && echo "File '$source_config' not found or empty." && return 1
+  [[ ! -s "$target_config" ]] && echo "File '$target_config' not found or empty." && return 1
+
+  echo "Importing $source_config into $target_config."
+
+  local cluster_name="$(kubectl config view --raw -o json --kubeconfig="$source_config" | jq -r '.clusters[0] .name')"
+  local cluster_authority="$(kubectl config view --raw -o json --kubeconfig="$source_config" | jq -r '.clusters[0] .cluster ."certificate-authority-data"')"
+  local cluster_address="$(kubectl config view --raw -o json --kubeconfig="$source_config" | jq -r '.clusters[0] .cluster .server')"
+  local username="$(kubectl config view --raw -o json --kubeconfig="$source_config" | jq -r '.users[0] .name')"
+  local user_cert="$(kubectl config view --raw -o json --kubeconfig="$source_config" | jq -r '.users[0] .user ."client-certificate-data"')"
+  local user_key="$(kubectl config view --raw -o json --kubeconfig="$source_config" | jq -r '.users[0] .user ."client-key-data"')"
+  local target_context_name="${username}-${cluster_name}"
+
+  echo "Checking if cluster name '$cluster_name' already exists in '$target_config'."
+  if kubectl config get-clusters --kubeconfig "$target_config" | grep "^$cluster_name$" > /dev/null; then
+    # TODO: check if the cluster-details in both files are the same
+    echo -e "\n!!!! Cluster '$cluster_name' already configured. Use it ONLY if it's the SAME one as that in '$source_config' !!!!\n"
+    read -rp "Do you want to abort or use it? [A/u]: " answer
+    [[ "$answer" != "u" ]] && echo "Aborting." && exit 1;
+  fi
+
+  echo "Checking if user '$username' already exists in '$target_config'."
+  if kubectl config get-users --kubeconfig "$target_config" | grep "^$username$" > /dev/null; then
+    echo -e "\n!!!! User '$username' already configured. Aborting !!!!\n"
+    return 1
+  fi
+
+  echo "Checking if context '$target_context_name' already exists in '$target_config'."
+  if kubectl config get-contexts --kubeconfig "$target_config" -o name | grep "^$target_context_name$" > /dev/null; then
+    echo -e "\n!!!! Context '$target_context_name' already exists. Aborting !!!!\n"
+    return 1
+  fi
+
+  echo "Starting to merge. Creating backup of target config as '/tmp/config-copy-$$"
+  cp "$target_config" "/tmp/config-copy-$$"
+
+  echo "$cluster_authority" > /tmp/$$
+  kubectl config set-cluster "$cluster_name" --server="$cluster_address" \
+        --certificate-authority="/tmp/$$" --embed-certs=true --kubeconfig="$target_config"
+
+  echo "$user_cert" > /tmp/$$
+  kubectl config set-credentials "$username" --client-certificate="/tmp/$$" --embed-certs=true --kubeconfig="$target_config"
+
+  echo "$user_key" > /tmp/$$
+  kubectl config set-credentials "$username" --client-key="/tmp/$$" --embed-certs=true --kubeconfig="$target_config"
+
+  kubectl config set-context "$target_context_name" --cluster="$cluster_name" --user "$username" --kubeconfig="$target_config"
+
+  rm /tmp/$$
+
+  echo "Config import complete"
+  echo -e "\tUse 'kubectl config get-contexts --kubeconfig $target_config' to list available contexts."
+  echo -e "\tActivate a context with 'kubectl config use-context my-context-name  --kubeconfig $target_config'."
 }
