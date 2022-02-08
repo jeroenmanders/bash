@@ -5,6 +5,7 @@
 
 exec > >(tee -a /var/log/kube-bootstrap.log | logger -s -t kube-bootstrap) 2>&1
 
+. ./vars.local
 . ./env.sh
 
 get_guest_properties

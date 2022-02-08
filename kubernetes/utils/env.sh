@@ -5,6 +5,8 @@ set -euo pipefail
 this_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$this_dir"
 
+. ./env-shared.sh
+
 REPO_DIR="$(git rev-parse --show-toplevel)"
 . "$REPO_DIR"/bash/init.sh
 
@@ -79,6 +81,8 @@ function setup_cluster() {
   vboxmanage guestproperty set "$WORKER-1" join-command-2 "$join_command_2"
   vboxmanage guestproperty set "$WORKER-2" join-command-1 "$join_command_1"
   vboxmanage guestproperty set "$WORKER-2" join-command-2 "$join_command_2"
+
+  add_cluster_user "system:masters" "$OS_USERNAME"
 }
 
 function create_vm() {
@@ -122,53 +126,166 @@ function remove_vm() {
 
 # This function runs on the controller node
 function _generate_user_certs() {
+  set -euo pipefail;
   [[ -z "$username" ]] && echo "Variable 'username' not set in _generate_user_certs!" && exit 1
   [[ -z "$group" ]] && echo "Variable 'group' not set in _generate_user_certs!" && exit 1
+  export username group # necessary for envsubst
+  local temp_dir="$(mktemp -d -p /tmp)"
+  cd "$temp_dir"
 
   echo "Creating certificate for user '$username' with group '$group'."
-  openssl genrsa -out "$username.key" 2048
 
-  openssl req -new -key "$username.key" \
-   -out "$username.csr" \
-   -subj "/CN=$username/O=$group"
+  echo "Creating private key."
+  openssl genrsa -out "$username.key" 4096
 
-  sudo openssl x509 -req -in "$username.csr" \
-   -CA /etc/kubernetes/pki/ca.crt \
-   -CAkey /etc/kubernetes/pki/ca.key \
-   -CAcreateserial \
-   -out "$username.crt" -days 500
+  echo "Creating certificate signing request."
+  cat > csr.cnf << EOF
+[ req ]
+default_bits = 2048
+prompt = no
+default_md = sha256
+distinguished_name = dn
+[ dn ]
+CN = $username
+O = ${username}-group
+[ v3_ext ]
+authorityKeyIdentifier=keyid,issuer:always
+basicConstraints=CA:FALSE
+keyUsage=keyEncipherment,dataEncipherment
+extendedKeyUsage=serverAuth,clientAuth
+EOF
+
+  openssl req -config ./csr.cnf -new -key "$username.key" -nodes -out "$username.csr"
+
+  echo "Converting the csr to base64."
+  export BASE64_CSR=$(< ./"$username.csr" base64 -w0)
+
+  echo "Uploading CSR"
+  cat <<EOF | envsubst | kubectl apply -f -
+apiVersion: certificates.k8s.io/v1
+kind: CertificateSigningRequest
+metadata:
+  name: ${username}-csr
+spec:
+  signerName: kubernetes.io/kube-apiserver-client
+  groups:
+  - $group
+  #- system:authenticated
+  # expirationSeconds: 14400
+  request: ${BASE64_CSR}
+  usages:
+  - digital signature
+  - key encipherment
+  #- server auth    not available with this signerName
+  - client auth
+EOF
+
+  echo "Approving CSR."
+  kubectl certificate approve "${username}-csr"
+
+  echo "Creating certificate."
+  kubectl get csr "${username}-csr" -o jsonpath='{.status.certificate}' | base64 --decode >"$username.crt"
+
+  openssl x509 -in ./"$username.crt" -noout -text
+
+  export CLUSTER_NAME="$(kubectl config view --raw -o json | jq -r '.clusters[0] .name')"
+  export CLIENT_CERTIFICATE_DATA=$(kubectl get csr "${username}-csr" -o jsonpath='{.status.certificate}')
+  export CLUSTER_CA="$(kubectl config view --raw -o json | jq -r '.clusters[0] .cluster ."certificate-authority-data"')"
+  export CLUSTER_ENDPOINT="$(kubectl config view --raw -o json | jq -r '.clusters[0] .cluster .server')"
+
+  echo "CLUSTER_NAME: $CLUSTER_NAME"
+  echo "CLIENT_CERTIFICATE_DATA: $CLIENT_CERTIFICATE_DATA"
+  echo "CLUSTER_CA: $CLUSTER_CA"
+  echo "CLUSTER_ENDPOINT: $CLUSTER_ENDPOINT"
+
+  echo "Generating kubeconfig"
+  cat << EOF | envsubst > "$(pwd)/kubeconfig"
+apiVersion: v1
+kind: Config
+clusters:
+- cluster:
+    certificate-authority-data: ${CLUSTER_CA}
+    server: ${CLUSTER_ENDPOINT}
+  name: ${CLUSTER_NAME}
+users:
+- name: ${username}
+  user:
+    client-certificate-data: ${CLIENT_CERTIFICATE_DATA}
+contexts:
+- context:
+    cluster: ${CLUSTER_NAME}
+    user: ${username}
+  name: ${username}-${CLUSTER_NAME}
+current-context: ${username}-${CLUSTER_NAME}
+EOF
+
+  echo "Adding private key to kubeconfig"
+  kubectl config --kubeconfig="$(pwd)/kubeconfig" set-credentials "$username" --client-key="$username.key" --embed-certs=true
+  mv "$(pwd)/kubeconfig" ~/"kubeconfig-$username"
+  rm -Rf "$temp_dir"
+
+  echo "cluster-admin"
+  cat << EOF | kubectl apply -f -
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: ${username}-cluster-admin
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+- apiGroup: rbac.authorization.k8s.io
+  kind: User
+  name: $username
+
+EOF
 }
 
-function create_kubernetes_user() {
-  local username="$1"
-  local group="${2:-admins}"
+function add_cluster_user() {
+  local group="$1"
+  local username="$2"
 
-  [[ -z "$username" ]] && log_fatal "Please provide the username as the first argument to function 'create_kubernetes_user'."
+  [[ -z "$group" ]] && log_fatal "Please provide the group as the first argument to function 'add_cluster_user'."
+  [[ -z "$username" ]] && log_fatal "Please provide the username as the second argument to function 'add_cluster_user'."
 
   get_vm_ip kube-controller-1 # variable "IP"" now contains the IP of the controller VM
 
   # shellcheck disable=SC2087
   # shellcheck disable=SC2034
-  ssh packer@"$IP" << EOF
+  ssh "$OS_USERNAME"@"$IP" <<EOF
     $(typeset -f _generate_user_certs)
     username="$username" group="$group" _generate_user_certs
 EOF
 
-  log_info "Retrieving certs and copying them to $HOME/.kube/"
-  scp packer@"$IP":"$username".* ~/.kube/
+  log_info "Retrieving kubeconfig for $username copying it to $HOME/.kube/kubeconfig-$username"
+  scp "$OS_USERNAME@$IP:kubeconfig-$username" ~/.kube/"kubeconfig-$username"
 
-  log_info "Removing the certs from the controller."
-  ssh packer@"$IP" rm "$username".*
+  log_info "Removing the kubeconfig file from the controller."
+  # shellcheck disable=SC2029
+  ssh "$OS_USERNAME@$IP" rm "kubeconfig-$username"
 
   [[ -f ~/.kube/config ]] && cp ~/.kube/config ~/.kube/config.org.$$
 
-  log_info "Creating context '$username'."
-  kubectl config set-context "$username" --cluster=kubernetes --user "$username"
+# Improvement: add new kubeconfig to the KUBECONFIG environment variable, of import the new one in ~/.kube/kubeconfig
+#
+#  CLIENT_CERTIFICATE_DATA="$(cat ~/.kube/"$username.csr")"
+#  echo "$CLUSTER_CA" >~/.kube/$username.cluster_ca
+#
+#  if kubectl config get-clusters | grep '^'$CLUSTER_NAME'$'; then
+#    log_warn "Cluster '$CLUSTER_NAME' already registered in kubeconfig. Not overwritting it."
+#  else
+#    log_info "Creating context '$username' for cluster '$CLUSTER_NAME'."
+#    local home="$(eval echo ~)"
+#    kubectl config set-context "$username" --cluster=$CLUSTER_NAME --user "$username"
+#    kubectl config set-cluster "$CLUSTER_NAME" --server="$CLUSTER_ENDPOINT" \
+#      --certificate-authority="$home/.kube/$username.csr" --embed-certs=true
+#  fi
+#
+#  log_info "Setting credentials for '$username'."
+#  kubectl config set-credentials "$username" \
+#    --client-certificate="$HOME/.kube/$username.crt" \
+#    --client-key="$HOME/.kube/$username.key"
 
-  log_info "Setting credentials for '$username'."
-  kubectl config set-credentials "$username" \
-    --client-certificate="$HOME/.kube/$username.crt" \
-    --client-key="$HOME/.kube/$username.key"
-
-  echo "User and context created. Activate using 'kubectl config use-context $username"
+  #echo "Admin user and context created. Activate using 'kubectl config use-context $username'"
 }

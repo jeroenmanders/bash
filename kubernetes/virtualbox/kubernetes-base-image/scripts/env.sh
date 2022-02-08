@@ -4,8 +4,6 @@ set -euo pipefail
 
 VERSION=1.22.0
 export DEBIAN_FRONTEND=noninteractive
-export OS_USERNAME="${1:- }"
-export OS_USER_PUB_KEY="${2:- }"
 
 function get_guest_property() {
   local name="$1"
@@ -68,9 +66,6 @@ EOF
   # Ensure swap is off after a restart
   sudo sed -i '/ swap / s/^\(.*\)$/#\1/g' /etc/fstab
 
-  #sudo apt-get update
-  #sudo apt-get install -y apt-transport-https curl
-
   curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
 
   cat <<EOF | sudo tee /etc/apt/sources.list.d/kubernetes.list
@@ -121,6 +116,9 @@ function prepare_for_template() {
 
   mkdir -p /opt/scripts
   cp -R . /opt/scripts/
+  cat > /opt/scripts/vars.local <<EOF
+OS_USERNAME=$OS_USERNAME
+EOF
 }
 
 function install_guest_additions() {
@@ -246,7 +244,7 @@ function create_os_user() {
   echo "%$OS_USERNAME ALL=(ALL) NOPASSWD: ALL" >>"/etc/sudoers.d/$OS_USERNAME"
   local user_home="$(eval echo ~"$OS_USERNAME")"
   mkdir -p "$user_home/.ssh"
-  chown "$OS_USERNAME" "$user_home/.ssh"
+  chown -R "$OS_USERNAME" "$user_home"
   [ -n "$OS_USER_PUB_KEY" ] && echo "$OS_USER_PUB_KEY" >>"$user_home/.ssh/authorized_keys"
   cp vimrc.temp "$user_home/.vimrc"
 }
