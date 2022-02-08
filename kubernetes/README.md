@@ -28,6 +28,13 @@ REPO_DIR="$(git rev-parse --show-toplevel)";
 "$REPO_DIR/utils/install-packer.sh";
 ```
 
+### Install kubectl
+
+```shell
+REPO_DIR="$(git rev-parse --show-toplevel)";
+"$REPO_DIR/utils/install-kubectl.sh";
+```
+
 ### Create a base VirtualBox OVF
 
 > Any existing files under <REPO_DIR>/local-resources/virtualbox/kubernetes-base will be removed!
