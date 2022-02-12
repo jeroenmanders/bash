@@ -1,7 +1,0 @@
-# This user will be able to SSH into virtual machines created from this image
-os_username = "jeroen"
-
-# Generate using: ssh-keygen -t ed25519 -C jeroen@manders.be
-os_user_pub_key = "ssh-rsa AAAA..."
-
-# See "variables.pkr.hcl" for additional variables
