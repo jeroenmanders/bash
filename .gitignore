@@ -1,5 +1,5 @@
 *.local
-*.local.yml
+*.local.*
 .idea
 local-resources/
 *-VBoxHeadless-*.log
