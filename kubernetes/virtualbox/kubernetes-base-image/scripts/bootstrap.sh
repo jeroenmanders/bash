@@ -11,8 +11,9 @@ exec > >(tee -a /var/log/kube-bootstrap.log | logger -s -t kube-bootstrap) 2>&1
 get_guest_properties
 
 if [ "$HOST_TYPE" == "controller" ]; then
-  init_cluster
-  #export KUBECONFIG=/etc/kubernetes/admin.conf # kubeconfig is under ~/.kube already
+  get_guest_property "cluster-name"
+  init_cluster "$LAST_VALUE"
+
   JOIN_COMMAND="$(kubeadm token create --print-join-command)"
 
   # Reading guestproperties only works for string up-to 150 characters ...
@@ -29,6 +30,22 @@ elif [ "$HOST_TYPE" == "worker" ]; then
 else
   echo "!!! ERROR: host type '$HOST_TYPE' not recognized!"
   exit 1
+fi
+
+function mount_host_share() {
+  local host_ip="$1"
+  #sudo apt-get update
+
+  sudo mkdir -p /mnt/host
+  sudo mount -t nfs4 "$host_ip":/ /mnt/host
+  echo "$host_ip:/ /mnt/host   nfs4    defaults   0   0" | sudo tee -a /etc/fstab
+}
+
+get_guest_property "host-ip"
+if [ -z "$LAST_VALUE" ]; then
+  echo "Property 'host-ip' not set so not mounting a host share"
+else
+  mount_host_share "$LAST_VALUE"
 fi
 
 systemctl disable kube-bootstrap.service

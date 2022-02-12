@@ -54,7 +54,12 @@ EOF
 
   sudo sysctl --system
   sudo apt-get update
-  sudo apt-get -y install curl apt-transport-https gnupg2 net-tools apt-transport-https jq containerd etcd-client
+  sudo apt-get -y install curl apt-transport-https gnupg2 net-tools apt-transport-https jq containerd etcd-client nfs-common
+
+  echo "Installing 'yq'."
+  sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+  sudo chmod a+x /usr/local/bin/yq
+
   sudo mkdir -p /etc/containerd
   sudo containerd config default | sudo tee /etc/containerd/config.toml
 
@@ -138,11 +143,20 @@ function install_guest_additions() {
 }
 
 function init_cluster() {
-  echo "---- INITIALIZING THE CLUSTER ----"
+  export CLUSTER_NAME="$1"
+
+  [[ -z "$CLUSTER_NAME" ]] && echo "First argument to init_cluster should be the cluster name!" >&2 && exit 1
+
+  echo "---- INITIALIZING CLUSTER '$CLUSTER_NAME' ----"
 
   init_server controller
 
-  kubeadm init --pod-network-cidr 192.168.0.0/16 --kubernetes-version 1.22.0 --control-plane-endpoint "$IP:6443" --apiserver-advertise-address "$IP"
+  cat cluster-config.tpl.yaml | envsubst > "/tmp/kube-init-config.yaml"
+  kubeadm init --config "/tmp/kube-init-config.yaml"
+
+  # Without config file (needed only to set the cluster name
+  # kubeadm init --config "/tmp/kube-init-config.yaml" --pod-network-cidr 192.168.0.0/16 --kubernetes-version 1.22.0 \
+  #  --control-plane-endpoint "$IP:6443" --apiserver-advertise-address "$IP"
 
   echo "Configuring kubeconfig for root."
   export KUBECONFIG=/root/.kube/config
