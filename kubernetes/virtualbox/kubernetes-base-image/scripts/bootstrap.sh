@@ -34,18 +34,24 @@ fi
 
 function mount_host_share() {
   local host_ip="$1"
+  local mount_point="$2"
   #sudo apt-get update
 
   sudo mkdir -p /mnt/host
-  sudo mount -t nfs4 "$host_ip":/ /mnt/host
+  sudo mount -t nfs4 "$host_ip":"/$mount_point" /mnt/host
   echo "$host_ip:/ /mnt/host   nfs4    defaults   0   0" | sudo tee -a /etc/fstab
 }
 
 get_guest_property "host-ip"
-if [ -z "$LAST_VALUE" ]; then
-  echo "Property 'host-ip' not set so not mounting a host share"
+host_ip="$LAST_VALUE"
+get_guest_property "mount-point"
+mount_point="$LAST_VALUE"
+
+if [ -z "$host_ip" -o -z "$mount_point" ]; then
+  echo "Property 'host-ip' or 'mount-point' not set so not mounting a host share"
 else
-  mount_host_share "$LAST_VALUE"
+
+  mount_host_share "$host_ip" "$mount_point"
 fi
 
 systemctl disable kube-bootstrap.service

@@ -121,9 +121,6 @@ function prepare_for_template() {
 
   mkdir -p /opt/scripts
   cp -R . /opt/scripts/
-  cat > /opt/scripts/vars.local <<EOF
-OS_USERNAME=$OS_USERNAME
-EOF
 }
 
 function install_guest_additions() {
@@ -253,8 +250,8 @@ function join_cluster() {
 }
 
 function create_os_user() {
-  echo "Creating OS user $OS_USERNAME."
-  useradd -s /usr/bin/bash "$OS_USERNAME"
+  echo "Creating OS user $OS_USERNAME with ID $OS_USER_ID."
+  useradd -s /usr/bin/bash "$OS_USERNAME" -u "$OS_USER_ID"
   echo "%$OS_USERNAME ALL=(ALL) NOPASSWD: ALL" >>"/etc/sudoers.d/$OS_USERNAME"
   local user_home="$(eval echo ~"$OS_USERNAME")"
   mkdir -p "$user_home/.ssh"
