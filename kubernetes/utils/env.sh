@@ -5,21 +5,29 @@ set -euo pipefail
 this_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$this_dir"
 
+. ../env.sh
+
+. "$REPO_DIR/bash/nfs.sh"
+
 . ./env-shared.sh
 
 REPO_DIR="$(git rev-parse --show-toplevel)"
-. "$REPO_DIR"/bash/init.sh
+. "$REPO_DIR"/kubernetes/env.sh
 
-# Currently just one cluster can be configured.
-#  Use something like the following to support multiple clusters:
-#  '.kubernetes .clusters [] | select(.name-prefix == "kube") .main-user'
-get_var "VM_NAME_PREFIX" "../settings.local.yml" ".kubernetes .clusters[0] .name-prefix" ""
-get_var "OS_USERNAME" "../settings.local.yml" ".kubernetes  .clusters[0] .main-user" ""
-get_var "AUTOSTART_VMS" "../settings.local.yml" ".virtualbox .autostart-vms" "true"
 OVA_FILE="$REPO_DIR/local-resources/virtualbox/kubernetes-base/kubernetes-base.ovf"
 
-CONTROLLER="$VM_NAME_PREFIX-controller"
-WORKER="$VM_NAME_PREFIX-worker"
+function get_guest_property() {
+  local vm_name="$1"
+  local name="$2"
+  local with_value="$(vboxmanage guestproperty get "$vm_name" "$name")"
+
+  if [[ "$with_value" != "Value: "* ]]; then
+    export LAST_VALUE=""
+    return
+  fi
+
+  export LAST_VALUE="${with_value#"Value: "}"
+}
 
 function configure_vbox_network() {
   if vboxmanage list hostonlyifs | grep -e '^VBoxNetworkName:.*HostInterfaceNetworking-vboxnet0' >/dev/null; then
@@ -27,10 +35,10 @@ function configure_vbox_network() {
     return
   fi
   local prefix=".virtualbox .dhcp .vboxnet0"
-  get_var "_TMP_IP" "../settings.local.yml" "$prefix .ip" "192.168.56.1"
-  get_var "_TMP_NETMASK" "../settings.local.yml" "$prefix .netmask" "192.168.56.1"
-  get_var "_TMP_LOWERIP" "../settings.local.yml" "$prefix .ip" "192.168.56.1"
-  get_var "_TMP_UPPERIP" "../settings.local.yml" "$prefix .ip" "192.168.56.1"
+  get_var "_TMP_IP" "$VBOX_CONFIG_FILE" "$prefix .ip" "192.168.56.1"
+  get_var "_TMP_NETMASK" "$VBOX_CONFIG_FILE" "$prefix .netmask" "192.168.56.1"
+  get_var "_TMP_LOWERIP" "$VBOX_CONFIG_FILE" "$prefix .ip" "192.168.56.1"
+  get_var "_TMP_UPPERIP" "$VBOX_CONFIG_FILE" "$prefix .ip" "192.168.56.1"
 
   log_info "Configuring Virtualbox host only network vboxnet0."
   vboxmanage hostonlyif create
@@ -45,6 +53,12 @@ function install_extensions() {
 }
 
 function setup_cluster() {
+  [[ -z "$CLUSTER_NAME" ]] && echo "Variable 'CLUSTER_NAME' not set!" && exit 1;
+  local MOUNT_POINT="kubernetes-shared/$CLUSTER_NAME"
+
+  get_default_ip
+  local default_ip="$LAST_VALUE"
+
   # We're using 2 join-commands because the maximum (reading) length of guest properties is 150 characters
   #   And alternative would be to generate a file and copy it to the machine (SMB or something like the following)
   # VBoxManage guestcontrol "kube-controller-1" run /bin/sh --username $OS_USERNAME --verbose --wait-stdout \
@@ -52,15 +66,33 @@ function setup_cluster() {
   local join_command_1=""
   local join_command_2=""
 
-  create_vm "$CONTROLLER-1" controller
-  create_vm "$WORKER-1" worker "join-command"
-  create_vm "$WORKER-2" worker "join-command"
+  get_var "SHARE_DIR" "$K8S_CONFIG_FILE" ".kubernetes .nfs .share .directory" ""
+  get_var "SHARE_WITH_CIDR" "$K8S_CONFIG_FILE" ".kubernetes .nfs .share .share-with-cidr" ""
+
+  if [ -z "$SHARE_DIR" ]; then
+    log_warn "No NFS-share configured in the kubernetes configuration file."
+  else
+    ensure_nfs4_share "$SHARE_DIR" "$SHARE_WITH_CIDR";
+    mkdir -p "$SHARE_DIR/$MOUNT_POINT"
+  fi
+
+  create_vm "$CONTROLLER-1" "controller" "false" "$default_ip" "$MOUNT_POINT"
+  for i in $(seq 1 "$WORKERS"); do
+    sleep 1 # let vboxmanage settle ...
+    create_vm "$WORKER-$i" "worker" "false" "$default_ip" "$MOUNT_POINT"
+  done
+
+  # wait_for_background_jobs # -> commented out because VirtualBox is not happy with too many instance creations at once
+
+  vboxmanage guestproperty set "$CONTROLLER-1" "cluster-name" "$CLUSTER_NAME"
+  start_vm "$CONTROLLER-1"
 
   local started_at_second=$(date +%s)
   local fail_at_second=$((started_at_second + 900)) # timeout after 15 minutes
   echo -e "Waiting for controller setup ."
   while [ "$join_command_2" == "" ]; do
-    local join_command_with_value="$(vboxmanage guestproperty get "$CONTROLLER-1" join-command-2)"
+    get_guest_property "$CONTROLLER-1" "join-command-2"
+    local join_command_with_value="$LAST_VALUE"
     local current_second=$(date +%s)
     if [ "$current_second" -gt "$fail_at_second" ]; then
       log_info "Timeout waiting for the cluster to get initialized. Aborting."
@@ -68,30 +100,35 @@ function setup_cluster() {
     fi
     if [ -n "$join_command_with_value" ]; then
       join_command_2="${join_command_with_value#"Value: "}"
-      join_command_with_value="$(vboxmanage guestproperty get "$CONTROLLER-1" join-command-1)"
+      get_guest_property "$CONTROLLER-1" "join-command-1"
+      local join_command_with_value="$LAST_VALUE"
       join_command_1="${join_command_with_value#"Value: "}"
     fi
     sleep 5
   done
 
-  log_info "Setting join-command-1 for worker machines to '$join_command_1'"
-  log_info "Setting join-command-2 for worker machines to '$join_command_2'"
+  # shellcheck disable=SC2153
+  for i in $(seq 1 "$WORKERS"); do
+#    create_vm "$WORKER-$i" "worker" "true" "$default_ip" "$MOUNT_POINT"
+    log_info "Setting join-command-1 for worker machines to '$join_command_1'"
+    vboxmanage guestproperty set "$WORKER-$i" join-command-1 "$join_command_1"
+    log_info "Setting join-command-2 for worker machines to '$join_command_2'"
+    vboxmanage guestproperty set "$WORKER-$i" join-command-2 "$join_command_2"
+    start_vm "$WORKER-$i"
+  done
 
-  vboxmanage guestproperty set "$WORKER-1" join-command-1 "$join_command_1"
-  vboxmanage guestproperty set "$WORKER-1" join-command-2 "$join_command_2"
-  vboxmanage guestproperty set "$WORKER-2" join-command-1 "$join_command_1"
-  vboxmanage guestproperty set "$WORKER-2" join-command-2 "$join_command_2"
-
-  add_cluster_user "system:masters" "$OS_USERNAME"
+  create_administrators;
 }
 
 function create_vm() {
   local vm_name="$1"
   local host_type="$2"
+  local auto_start="$3"
+  local host_ip="$4"
+  local mount_point="$5"
 
   log_info "Importing $OVA_FILE for $vm_name."
   vboxmanage import "$OVA_FILE" --vsys 0 --vmname "$vm_name"
-
   log_info "Adding second adapter.".
   vboxmanage modifyvm "$vm_name" --nic2 hostonly --hostonlyadapter2 vboxnet0
 
@@ -102,24 +139,43 @@ function create_vm() {
     log_info "Not enabled autostart because AUTOSTART_VMS is '$AUTOSTART_VMS'."
   fi
 
-  log_info "Setting guest host-name and type."
+  log_info "Setting guest host-name to '$vm_name', host-type to '$host_type'."
   vboxmanage guestproperty set "$vm_name" host-name "$vm_name"
   vboxmanage guestproperty set "$vm_name" host-type "$host_type"
+
+  log_info "Setting host-ip to '$host_ip' and mount-point to '$mount_point' so that the client can create an NFS-mount."
+  vboxmanage guestproperty set "$CONTROLLER-1" "host-ip" "$host_ip"
+  vboxmanage guestproperty set "$vm_name" "mount-point" "$mount_point"
+
+  if [ "$auto_start" == "true" ]; then
+    start_vm "$vm_name"
+  fi
+}
+
+
+
+function start_vm() {
+  local vm_name="$1"
+
+  [[ -z "$vm_name" ]] && echo "First argument to start_vm should be the VM name!" >&2 && exit 1
 
   log_info "Starting VM $vm_name."
   vboxmanage startvm "$vm_name" --type=headless
 }
 
 function remove_cluster() {
+  set +e
   read -rp "Are you sure you want to remove the virtual machines? [y/N]: " answer
   [[ "$answer" != "y" ]] && log_info "Answer was not 'y' so quitting." && exit 1
   remove_vm "$CONTROLLER-1"
-  remove_vm "$WORKER-1"
-  remove_vm "$WORKER-2"
+  for i in $(seq 1 "$WORKERS"); do
+    remove_vm "$WORKER-$i"
+  done
 }
 
 function remove_vm() {
   local vm_name="$1"
+  log_info "Stopping and removing '$vm_name'."
   vboxmanage controlvm "$vm_name" poweroff
   vboxmanage unregistervm --delete "$vm_name"
 }
@@ -242,6 +298,16 @@ subjects:
 EOF
 }
 
+function create_administrators() {
+  log_info "Retrieving administrators from $K8S_CONFIG_FILE."
+
+  get_var "KUBERNETES_USERS" "$K8S_CONFIG_FILE" ".kubernetes .clusters[0] .kubernetes-admins" ""
+  for user in $(echo "$KUBERNETES_USERS" | yq '.[] .name'); do
+    echo "Processing user '$user'"
+    add_cluster_user "system:masters" "$user"
+  done;
+}
+
 function add_cluster_user() {
   local group="$1"
   local username="$2"
@@ -261,14 +327,18 @@ EOF
 
   log_info "Retrieving kubeconfig for $username copying it to $HOME/.kube/kubeconfig-$username"
   scp "$OS_USERNAME@$IP:kubeconfig-$username" ~/.kube/"kubeconfig-$username"
+  chmod 600 ~/.kube/"kubeconfig-$username"
 
   log_info "Removing the kubeconfig file from the controller."
   # shellcheck disable=SC2029
   ssh "$OS_USERNAME@$IP" rm "kubeconfig-$username"
 
-  [[ -f ~/.kube/config ]] && cp ~/.kube/config ~/.kube/config.org.$$
-
-  import_kubeconfig ~/.kube/"kubeconfig-$username" "$user_home/.kube/config"
+  if [ "$MERGE_KUBECONFIGS" == "true" ]; then
+    import_kubeconfig ~/.kube/"kubeconfig-$username" "$user_home/.kube/config"
+  else
+    # shellcheck disable=SC2088
+    echo "~/.kube/kubeconfig-$username generated."
+  fi;
 }
 
 function import_kubeconfig() {
@@ -281,6 +351,8 @@ function import_kubeconfig() {
   [[ ! -s "$source_config" ]] && echo "File '$source_config' not found or empty." && return 1
   [[ ! -s "$target_config" ]] && echo "File '$target_config' not found or empty." && return 1
 
+  [[ -f ~/.kube/config ]] && cp ~/.kube/config ~/.kube/config.org.$$
+
   echo "Importing $source_config into $target_config."
 
   local cluster_name="$(kubectl config view --raw -o json --kubeconfig="$source_config" | jq -r '.clusters[0] .name')"
@@ -291,10 +363,10 @@ function import_kubeconfig() {
   local user_key="$(kubectl config view --raw -o json --kubeconfig="$source_config" | jq -r '.users[0] .user ."client-key-data"')"
   local target_context_name="${username}-${cluster_name}"
 
-  echo "Checking if cluster name '$cluster_name' already exists in '$target_config'."
-  if kubectl config get-clusters --kubeconfig "$target_config" | grep "^$cluster_name$" > /dev/null; then
+  echo "Checking if cluster name '$CLUSTER_NAME' already exists in '$target_config'."
+  if kubectl config get-clusters --kubeconfig "$target_config" | grep "^$CLUSTER_NAME$" > /dev/null; then
     # TODO: check if the cluster-details in both files are the same
-    echo -e "\n!!!! Cluster '$cluster_name' already configured. Use it ONLY if it's the SAME one as that in '$source_config' !!!!\n"
+    echo -e "\n!!!! Cluster '$CLUSTER_NAME' already configured. Use it ONLY if it's the SAME one as that in '$source_config' !!!!\n"
     read -rp "Do you want to abort or use it? [A/u]: " answer
     [[ "$answer" != "u" ]] && echo "Aborting." && exit 1;
   fi
@@ -315,7 +387,7 @@ function import_kubeconfig() {
   cp "$target_config" "/tmp/config-copy-$$"
 
   echo "$cluster_authority" > /tmp/$$
-  kubectl config set-cluster "$cluster_name" --server="$cluster_address" \
+  kubectl config set-cluster "$CLUSTER_NAME" --server="$cluster_address" \
         --certificate-authority="/tmp/$$" --embed-certs=true --kubeconfig="$target_config"
 
   echo "$user_cert" > /tmp/$$
@@ -324,7 +396,7 @@ function import_kubeconfig() {
   echo "$user_key" > /tmp/$$
   kubectl config set-credentials "$username" --client-key="/tmp/$$" --embed-certs=true --kubeconfig="$target_config"
 
-  kubectl config set-context "$target_context_name" --cluster="$cluster_name" --user "$username" --kubeconfig="$target_config"
+  kubectl config set-context "$target_context_name" --cluster="$CLUSTER_NAME" --user "$username" --kubeconfig="$target_config"
 
   rm /tmp/$$
 
@@ -332,3 +404,4 @@ function import_kubeconfig() {
   echo -e "\tUse 'kubectl config get-contexts --kubeconfig $target_config' to list available contexts."
   echo -e "\tActivate a context with 'kubectl config use-context my-context-name  --kubeconfig $target_config'."
 }
+

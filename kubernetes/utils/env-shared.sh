@@ -34,24 +34,14 @@ function conn_vm() {
   local vm_name="$1"
   get_vm_ip "$vm_name"
 
-  echo "Connection with $KUBE_OS_USERNAME@$IP"
+  echo "Connecting with $KUBE_OS_USERNAME@$IP"
   ssh "$KUBE_OS_USERNAME@$IP"
-}
-
-function start_vms() {
-  vboxmanage startvm kube-controller-1 --type headless
-  vboxmanage startvm kube-worker-1 --type headless
-  vboxmanage startvm kube-worker-2 --type headless
 }
 
 function conn_controller() {
   conn_vm kube-controller-1
 }
 
-function conn_worker_1() {
-  conn_vm kube-worker-1
-}
-
-function conn_worker_2() {
-  conn_vm kube-worker-2
+function conn_worker() {
+  conn_vm kube-worker-$1
 }

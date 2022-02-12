@@ -21,7 +21,6 @@ function ensure_nfs4_share() {
 
   [[ -z "$share_dir" ]] && log_fatal "First argument for ensure_nfs4_share should be a directory to share."
   [[ -z "$share_cidr" ]] && log_fatal "Third argument for ensure_nfs4_share should be the CIDR to share the directory with."
-  [[ -d "$share_dir" || -f "$share_dir" ]] && log_fatal "'$share_dir' already exists."
 
   if [ -d "$share_dir" ]; then
     log_warn "Directory '$share_dir' already exists. Not touching it, so make sure '$(whoami)' has write-rights."

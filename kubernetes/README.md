@@ -9,7 +9,12 @@ This has been tested on Ubuntu 20.04 LTS.
 
 - `git`, `jq` and `yq` are installed. (run `utils/install-utils.sh` to install these)
 
-## Steps
+## Configuration
+
+Yaml files under `settings` are used by all scripts in this tree.  
+Copy `*.local.example.yaml` removing `.example` to get started.
+
+## Installation steps
 
 ### Install VirtualBox
 
@@ -39,9 +44,7 @@ REPO_DIR="$(git rev-parse --show-toplevel)";
 
 > Any existing files under <REPO_DIR>/local-resources/virtualbox/kubernetes-base will be removed!
 
-- Open directory "kubernetes/virtualbox/kubernetes-base-image".
-- Make sure you have an SSH-key file. You can create one using `ssh-keygen -t ed25519 -C jeroen@manders.be`.
-- Copy `variables.auto.pkrvars.hcl.example` to `variables.auto.pkrvars.hcl` and update its contents.
+- cd into directory `kubernetes/virtualbox/kubernetes-base-image`.
 - Run `./create-image.sh`
 
 The necessary files will be downloaded if they aren't available yet.  
@@ -49,5 +52,8 @@ The necessary files will be downloaded if they aren't available yet.
 ### Creating the Kubernetes cluster
 
 This involves the following steps:
-- Copy `settings.local.example.yml` to `kubernetes/settings.local.yml` and adjust its values.
+- cd into directory `utils`
 - Execute `./setup-cluster.sh` in the utils-directory.
+
+# Adding Kubernetes administrators
+

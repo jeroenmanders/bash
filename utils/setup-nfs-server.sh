@@ -5,21 +5,21 @@ cd "$this_dir" || exit 1
 
 . ./env.sh
 
-function ensure_yq() {
-  if [ "$(which "yq")" ]; then
-    log_info "'yq' is already installed."
-    return
+function setup_nfs_server() {
+#  if [ "$(which "yq")" ]; then
+#    log_info "'yq' is already installed."
+#    return
+#  fi
+
+  if [ -f "/proc/fs/nfsd/versions" ]; then
+    log_warn "NFS server seems to be installed already because '/proc/fs/nfsd/versions' exists. Aborting."
+    exit 1
   fi
 
-  log_info "Installing 'yq'."
-  sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
-  sudo chmod a+x /usr/local/bin/yq
-}
-
-function install_utils() {
-  ensure_yq
+  log_info "Installing NFS server."
   sudo apt-get update
-  sudo apt-get install -y jq git
+  sudo apt-get install -y nfs-kernel-server
 }
 
-install_utils
+
+setup_nfs_server

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # After sourcing this file, you can use the commands below.
-#   The username from the first cluster in settings.local.yml is used for the VM-connections
+#   The username from the first cluster in 010-kubernetes.local.yaml is used for the VM-connections
 
 # conn_controller  # Connects the the kube-controller-1 instance with the user that w
 # conn_worker_1  # Connects the the kube-controller-1 instance with the user that w
@@ -19,7 +19,7 @@ REPO_DIR="$(git rev-parse --show-toplevel)";
 
 cd "$current_dir" || exit 1
 
-get_var "KUBE_OS_USERNAME" "$this_dir/../settings.local.yml" ".kubernetes  .clusters[0] .main-user" ""
+get_var "KUBE_OS_USERNAME" "$this_dir/../settings/010-kubernetes.local.yaml" ".kubernetes  .clusters[0] .os-user .name" ""
 
 . "$this_dir/env-shared.sh"
 
