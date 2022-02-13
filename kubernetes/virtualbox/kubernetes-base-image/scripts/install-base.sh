@@ -5,6 +5,7 @@ exec > >(tee -a /var/log/base-image-install.log | logger -s -t base-image-instal
 export OS_USERNAME="${1:- }"
 export OS_USER_ID="${2:- }"
 export OS_USER_PUB_KEY="${3:- }"
+export OS_GROUP_ID="${4:- }"
 
 . ./env.sh
 

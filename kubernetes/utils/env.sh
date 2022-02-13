@@ -53,7 +53,7 @@ function install_extensions() {
 }
 
 function setup_cluster() {
-  [[ -z "$CLUSTER_NAME" ]] && echo "Variable 'CLUSTER_NAME' not set!" && exit 1;
+  [[ -z "$CLUSTER_NAME" ]] && echo "Variable 'CLUSTER_NAME' not set!" && exit 1
   local MOUNT_POINT="kubernetes-shared/$CLUSTER_NAME"
 
   get_default_ip
@@ -66,21 +66,17 @@ function setup_cluster() {
   local join_command_1=""
   local join_command_2=""
 
-  get_var "SHARE_DIR" "$K8S_CONFIG_FILE" ".kubernetes .nfs .share .directory" ""
+  get_var "ROOT_SHARE_DIR" "$K8S_CONFIG_FILE" ".kubernetes .nfs .share .root" ""
   get_var "SHARE_WITH_CIDR" "$K8S_CONFIG_FILE" ".kubernetes .nfs .share .share-with-cidr" ""
 
-  if [ -z "$SHARE_DIR" ]; then
-    log_warn "No NFS-share configured in the kubernetes configuration file."
+  if [ -z "$ROOT_SHARE_DIR" ]; then
+    log_warn "No NFS-share root configured in the kubernetes configuration file."
   else
-    ensure_nfs4_share "$SHARE_DIR" "$SHARE_WITH_CIDR";
-    mkdir -p "$SHARE_DIR/$MOUNT_POINT"
+    ensure_nfs4_share "$ROOT_SHARE_DIR" "$MOUNT_POINT" "$SHARE_WITH_CIDR" "$OS_GROUP_ID"
   fi
 
-  create_vm "$CONTROLLER-1" "controller" "false" "$default_ip" "$MOUNT_POINT"
-  for i in $(seq 1 "$WORKERS"); do
-    sleep 1 # let vboxmanage settle ...
-    create_vm "$WORKER-$i" "worker" "false" "$default_ip" "$MOUNT_POINT"
-  done
+  create_vm "$CONTROLLER-1" "controller" "false" "$default_ip" "/$MOUNT_POINT"
+  create_workers
 
   # wait_for_background_jobs # -> commented out because VirtualBox is not happy with too many instance creations at once
 
@@ -109,7 +105,7 @@ function setup_cluster() {
 
   # shellcheck disable=SC2153
   for i in $(seq 1 "$WORKERS"); do
-#    create_vm "$WORKER-$i" "worker" "true" "$default_ip" "$MOUNT_POINT"
+    #    create_vm "$WORKER-$i" "worker" "true" "$default_ip" "$/MOUNT_POINT"
     log_info "Setting join-command-1 for worker machines to '$join_command_1'"
     vboxmanage guestproperty set "$WORKER-$i" join-command-1 "$join_command_1"
     log_info "Setting join-command-2 for worker machines to '$join_command_2'"
@@ -117,7 +113,14 @@ function setup_cluster() {
     start_vm "$WORKER-$i"
   done
 
-  create_administrators;
+  create_administrators
+}
+
+function create_workers() {
+  for i in $(seq 1 "$WORKERS"); do
+      sleep 1 # let vboxmanage settle ...
+      create_vm "$WORKER-$i" "worker" "false" "$default_ip" "/$MOUNT_POINT"
+  done
 }
 
 function create_vm() {
@@ -144,15 +147,13 @@ function create_vm() {
   vboxmanage guestproperty set "$vm_name" host-type "$host_type"
 
   log_info "Setting host-ip to '$host_ip' and mount-point to '$mount_point' so that the client can create an NFS-mount."
-  vboxmanage guestproperty set "$CONTROLLER-1" "host-ip" "$host_ip"
+  vboxmanage guestproperty set "$vm_name" "host-ip" "$host_ip"
   vboxmanage guestproperty set "$vm_name" "mount-point" "$mount_point"
 
   if [ "$auto_start" == "true" ]; then
     start_vm "$vm_name"
   fi
 }
-
-
 
 function start_vm() {
   local vm_name="$1"
@@ -182,7 +183,7 @@ function remove_vm() {
 
 # This function runs on the controller node
 function _generate_user_certs() {
-  set -euo pipefail;
+  set -euo pipefail
   [[ -z "$username" ]] && echo "Variable 'username' not set in _generate_user_certs!" && exit 1
   [[ -z "$group" ]] && echo "Variable 'group' not set in _generate_user_certs!" && exit 1
   export username group # necessary for envsubst
@@ -195,7 +196,7 @@ function _generate_user_certs() {
   openssl genrsa -out "$username.key" 4096
 
   echo "Creating certificate signing request."
-  cat > csr.cnf << EOF
+  cat >csr.cnf <<EOF
 [ req ]
 default_bits = 2048
 prompt = no
@@ -214,7 +215,7 @@ EOF
   openssl req -config ./csr.cnf -new -key "$username.key" -nodes -out "$username.csr"
 
   echo "Converting the csr to base64."
-  export BASE64_CSR=$(< ./"$username.csr" base64 -w0)
+  export BASE64_CSR=$(base64 <./"$username.csr" -w0)
 
   echo "Uploading CSR"
   cat <<EOF | envsubst | kubectl apply -f -
@@ -239,6 +240,15 @@ EOF
   echo "Approving CSR."
   kubectl certificate approve "${username}-csr"
 
+  echo "----------- cert:"
+  kubectl get csr "${username}-csr" -o jsonpath='{.status.certificate}'
+
+  echo "Waiting 5 seconds because retrieving the certificate immediately sometimes results in an empty cert."
+  sleep 5
+
+  echo "----------- cert:"
+  kubectl get csr "${username}-csr" -o jsonpath='{.status.certificate}'
+
   echo "Creating certificate."
   kubectl get csr "${username}-csr" -o jsonpath='{.status.certificate}' | base64 --decode >"$username.crt"
 
@@ -255,7 +265,7 @@ EOF
   echo "CLUSTER_ENDPOINT: $CLUSTER_ENDPOINT"
 
   echo "Generating kubeconfig"
-  cat << EOF | envsubst > "$(pwd)/kubeconfig"
+  cat <<EOF | envsubst >"$(pwd)/kubeconfig"
 apiVersion: v1
 kind: Config
 clusters:
@@ -281,7 +291,7 @@ EOF
   rm -Rf "$temp_dir"
 
   echo "cluster-admin"
-  cat << EOF | kubectl apply -f -
+  cat <<EOF | kubectl apply -f -
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
@@ -305,7 +315,7 @@ function create_administrators() {
   for user in $(echo "$KUBERNETES_USERS" | yq '.[] .name'); do
     echo "Processing user '$user'"
     add_cluster_user "system:masters" "$user"
-  done;
+  done
 }
 
 function add_cluster_user() {
@@ -338,7 +348,7 @@ EOF
   else
     # shellcheck disable=SC2088
     echo "~/.kube/kubeconfig-$username generated."
-  fi;
+  fi
 }
 
 function import_kubeconfig() {
@@ -364,21 +374,21 @@ function import_kubeconfig() {
   local target_context_name="${username}-${cluster_name}"
 
   echo "Checking if cluster name '$CLUSTER_NAME' already exists in '$target_config'."
-  if kubectl config get-clusters --kubeconfig "$target_config" | grep "^$CLUSTER_NAME$" > /dev/null; then
+  if kubectl config get-clusters --kubeconfig "$target_config" | grep "^$CLUSTER_NAME$" >/dev/null; then
     # TODO: check if the cluster-details in both files are the same
     echo -e "\n!!!! Cluster '$CLUSTER_NAME' already configured. Use it ONLY if it's the SAME one as that in '$source_config' !!!!\n"
     read -rp "Do you want to abort or use it? [A/u]: " answer
-    [[ "$answer" != "u" ]] && echo "Aborting." && exit 1;
+    [[ "$answer" != "u" ]] && echo "Aborting." && exit 1
   fi
 
   echo "Checking if user '$username' already exists in '$target_config'."
-  if kubectl config get-users --kubeconfig "$target_config" | grep "^$username$" > /dev/null; then
+  if kubectl config get-users --kubeconfig "$target_config" | grep "^$username$" >/dev/null; then
     echo -e "\n!!!! User '$username' already configured. Aborting !!!!\n"
     return 1
   fi
 
   echo "Checking if context '$target_context_name' already exists in '$target_config'."
-  if kubectl config get-contexts --kubeconfig "$target_config" -o name | grep "^$target_context_name$" > /dev/null; then
+  if kubectl config get-contexts --kubeconfig "$target_config" -o name | grep "^$target_context_name$" >/dev/null; then
     echo -e "\n!!!! Context '$target_context_name' already exists. Aborting !!!!\n"
     return 1
   fi
@@ -386,14 +396,14 @@ function import_kubeconfig() {
   echo "Starting to merge. Creating backup of target config as '/tmp/config-copy-$$"
   cp "$target_config" "/tmp/config-copy-$$"
 
-  echo "$cluster_authority" > /tmp/$$
+  echo "$cluster_authority" >/tmp/$$
   kubectl config set-cluster "$CLUSTER_NAME" --server="$cluster_address" \
-        --certificate-authority="/tmp/$$" --embed-certs=true --kubeconfig="$target_config"
+    --certificate-authority="/tmp/$$" --embed-certs=true --kubeconfig="$target_config"
 
-  echo "$user_cert" > /tmp/$$
+  echo "$user_cert" >/tmp/$$
   kubectl config set-credentials "$username" --client-certificate="/tmp/$$" --embed-certs=true --kubeconfig="$target_config"
 
-  echo "$user_key" > /tmp/$$
+  echo "$user_key" >/tmp/$$
   kubectl config set-credentials "$username" --client-key="/tmp/$$" --embed-certs=true --kubeconfig="$target_config"
 
   kubectl config set-context "$target_context_name" --cluster="$CLUSTER_NAME" --user "$username" --kubeconfig="$target_config"
@@ -404,4 +414,3 @@ function import_kubeconfig() {
   echo -e "\tUse 'kubectl config get-contexts --kubeconfig $target_config' to list available contexts."
   echo -e "\tActivate a context with 'kubectl config use-context my-context-name  --kubeconfig $target_config'."
 }
-

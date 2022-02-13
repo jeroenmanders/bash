@@ -7,19 +7,18 @@
 # conn_worker_1  # Connects the the kube-controller-1 instance with the user that w
 # conn_worker_2  # Connects the the kube-controller-1 instance with the user that w
 
-
 this_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 current_dir="$(pwd)"
 cd "$this_dir" || exit 1
 
-REPO_DIR="$(git rev-parse --show-toplevel)";
+REPO_DIR="$(git rev-parse --show-toplevel)"
 
 . "$REPO_DIR/bash/source/logging.sh"
 . "$REPO_DIR/bash/source/yaml.sh"
 
 cd "$current_dir" || exit 1
 
-get_var "KUBE_OS_USERNAME" "$this_dir/../settings/010-kubernetes.local.yaml" ".kubernetes  .clusters[0] .os-user .name" ""
+get_var "KUBE_OS_USERNAME" "$this_dir/../settings/005-virtualbox.local.yaml" ".virtualbox .os-user .name" ""
 
 . "$this_dir/env-shared.sh"
 

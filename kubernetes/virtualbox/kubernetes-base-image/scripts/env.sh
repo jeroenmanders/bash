@@ -121,6 +121,9 @@ function prepare_for_template() {
 
   mkdir -p /opt/scripts
   cp -R . /opt/scripts/
+  cat > /opt/scripts/vars.local <<EOF
+OS_USERNAME=$OS_USERNAME
+EOF
 }
 
 function install_guest_additions() {
@@ -148,7 +151,7 @@ function init_cluster() {
 
   init_server controller
 
-  cat cluster-config.tpl.yaml | envsubst > "/tmp/kube-init-config.yaml"
+  < cluster-config.tpl.yaml envsubst > "/tmp/kube-init-config.yaml"
   kubeadm init --config "/tmp/kube-init-config.yaml"
 
   # Without config file (needed only to set the cluster name
@@ -250,9 +253,11 @@ function join_cluster() {
 }
 
 function create_os_user() {
-  echo "Creating OS user $OS_USERNAME with ID $OS_USER_ID."
-  useradd -s /usr/bin/bash "$OS_USERNAME" -u "$OS_USER_ID"
-  echo "%$OS_USERNAME ALL=(ALL) NOPASSWD: ALL" >>"/etc/sudoers.d/$OS_USERNAME"
+  echo "Creating group 'host-share-users' with ID '$OS_GROUP_ID'."
+  groupadd -g $OS_GROUP_ID "host-share-users"
+  echo "Creating OS user '$OS_USERNAME' with ID '$OS_USER_ID' and group '$OS_GROUP_ID'."
+  useradd -s /usr/bin/bash "$OS_USERNAME" -u "$OS_USER_ID" -g "$OS_GROUP_ID"
+  echo "$OS_USERNAME ALL=(ALL) NOPASSWD: ALL" >>"/etc/sudoers.d/$OS_USERNAME"
   local user_home="$(eval echo ~"$OS_USERNAME")"
   mkdir -p "$user_home/.ssh"
   chown -R "$OS_USERNAME" "$user_home"

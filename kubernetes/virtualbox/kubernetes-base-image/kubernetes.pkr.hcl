@@ -48,7 +48,7 @@ build {
   provisioner "shell" {
     inline = [
       "cd /tmp/scripts",
-      "echo 'packer' | sudo -S /tmp/scripts/install-base.sh '${ var.os_username }' '${ var.os_user_id }' '${ var.os_user_pub_key }'"
+      "echo 'packer' | sudo -S /tmp/scripts/install-base.sh '${ var.os_username }' '${ var.os_user_id }' '${ var.os_user_pub_key }' '${ var.os_group_id }'"
     ]
   }
 }

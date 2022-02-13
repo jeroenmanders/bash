@@ -3,7 +3,6 @@
 # This file exists so that these functions can be made available through a bash_profile
 #   without sourcing all Bash utilities
 
-
 function configure_kubernetes_cli() {
   source <(kubectl completion bash)
   alias k=kubectl
@@ -13,7 +12,7 @@ function configure_kubernetes_cli() {
 function get_vm_id() {
   local vm_name="$1"
   export VM_ID="$(vboxmanage list runningvms | grep '^"'"$vm_name"'"' | cut -d ' ' -f 2)"
-  export VM_ID="${VM_ID:1:${#VM_ID}-2}"  # remove accolades
+  export VM_ID="${VM_ID:1:${#VM_ID}-2}" # remove accolades
   echo "VM_ID of $vm_name: $VM_ID"
 }
 
@@ -43,5 +42,5 @@ function conn_controller() {
 }
 
 function conn_worker() {
-  conn_vm kube-worker-$1
+  conn_vm "kube-worker-$1"
 }
