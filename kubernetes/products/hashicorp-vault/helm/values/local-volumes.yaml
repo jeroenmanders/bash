@@ -1,0 +1,6 @@
+classes:
+  - name: local-storage
+    hostDir: /kube-data
+    volumeMode: Filesystem
+    storageClass:
+      isDefaultClass: true

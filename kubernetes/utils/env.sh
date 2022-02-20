@@ -2,6 +2,7 @@
 
 set -euo pipefail
 
+old_dir="$(pwd)"
 this_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$this_dir"
 
@@ -15,6 +16,8 @@ REPO_DIR="$(git rev-parse --show-toplevel)"
 . "$REPO_DIR"/kubernetes/env.sh
 
 OVA_FILE="$REPO_DIR/local-resources/virtualbox/kubernetes-base/kubernetes-base.ovf"
+
+cd "$old_dir" || exit 1
 
 function get_guest_property() {
   local vm_name="$1"
@@ -114,6 +117,7 @@ function setup_cluster() {
   done
 
   create_administrators
+  install_tools
 }
 
 function create_workers() {
@@ -321,7 +325,6 @@ function create_administrators() {
 function add_cluster_user() {
   local group="$1"
   local username="$2"
-  local user_home="$(eval echo ~)"
 
   [[ -z "$group" ]] && log_fatal "Please provide the group as the first argument to function 'add_cluster_user'."
   [[ -z "$username" ]] && log_fatal "Please provide the username as the second argument to function 'add_cluster_user'."
@@ -344,10 +347,12 @@ EOF
   ssh "$OS_USERNAME@$IP" rm "kubeconfig-$username"
 
   if [ "$MERGE_KUBECONFIGS" == "true" ]; then
-    import_kubeconfig ~/.kube/"kubeconfig-$username" "$user_home/.kube/config"
+    export LAST_ADMIN_KUBECONFIG="$USER_HOME/.kube/config"
+    import_kubeconfig ~/.kube/"kubeconfig-$username" "$USER_HOME/.kube/config"
   else
+    export LAST_ADMIN_KUBECONFIG="$USER_HOME/.kube/kubeconfig-$username"
     # shellcheck disable=SC2088
-    echo "~/.kube/kubeconfig-$username generated."
+    echo "$LAST_ADMIN_KUBECONFIG generated."
   fi
 }
 
@@ -413,4 +418,27 @@ function import_kubeconfig() {
   echo "Config import complete"
   echo -e "\tUse 'kubectl config get-contexts --kubeconfig $target_config' to list available contexts."
   echo -e "\tActivate a context with 'kubectl config use-context my-context-name  --kubeconfig $target_config'."
+}
+
+function install_tools() {
+  local system_namespace="kube-system"
+  log_info "Using kubeconfig: $LAST_ADMIN_KUBECONFIG"
+  export KUBECONFIG="$LAST_ADMIN_KUBECONFIG"
+
+  log_info "Applying resources from ./kubernetes-resources/"
+  cat ../kubernetes-resources/* | envsubst | kubectl apply -n "$system_namespace" -f -
+
+  get_var "INSTALL_LOCAL_PROVISIONERS" "$K8S_CONFIG_FILE" ".kubernetes .clusters[0] .install-local-provisioner" "false"
+  if [ "$INSTALL_LOCAL_PROVISIONERS" == "true" ]; then
+    log_info "Installing Helm chart 'sig-storage-local-static-provisioner'."
+    local chart="../charts/sig-storage-local-static-provisioner"
+    helm install -f "./local-provisioner-values.yaml" --namespace "$system_namespace" \
+      sig-storage-local-static-provisioner  "$chart"
+  else
+    log_warn "Not installing local provisioner because setting 'install-local-provisioner' is not 'true'."
+  fi
+}
+
+function get_random_node_internal_ip() {
+  export LAST_VALUE="$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}')"
 }

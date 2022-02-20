@@ -8,7 +8,10 @@ distinguished_name = req_distinguished_name
 
 [req_distinguished_name]
 emailAddress = dummy@example.com
-CN = ${SERVICE}.${NAMESPACE}.svc
+
+# CN and O needs to be the same as those in the generated CSR-file
+CN = system:node:$SERVICE_NAME.$SERVICE_NAMESPACE.svc
+O = system:nodes
 
 [v3_req]
 basicConstraints = CA:FALSE
@@ -17,9 +20,9 @@ extendedKeyUsage = serverAuth
 subjectAltName = @alt_names
 
 [alt_names]
-DNS.1 = ${SERVICE}
-DNS.2 = ${SERVICE}.${NAMESPACE}
-DNS.3 = ${SERVICE}.${NAMESPACE}.svc
-DNS.4 = ${SERVICE}.${NAMESPACE}.svc.cluster.local
-DNS.5 = *.vault-internal
+DNS.1 = ${SERVICE_NAME}
+DNS.2 = ${SERVICE_NAME}.${SERVICE_NAMESPACE}
+DNS.3 = ${SERVICE_NAME}.${SERVICE_NAMESPACE}.svc
+DNS.4 = ${SERVICE_NAME}.${SERVICE_NAMESPACE}.svc.cluster.local
+DNS.5 = *.${SERVICE_NAME}-internal
 IP.1 = 127.0.0.1

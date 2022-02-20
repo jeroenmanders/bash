@@ -12,9 +12,13 @@ cd "$this_dir" || exit 1
 REPO_DIR="$(git rev-parse --show-toplevel)"
 . "$REPO_DIR"/bash/init.sh
 
+export USER_HOME="$(eval echo ~)"
+
 export VBOX_CONFIG_FILE="$REPO_DIR/kubernetes/settings/005-virtualbox.local.yaml"
 export K8S_CONFIG_FILE="$REPO_DIR/kubernetes/settings/010-kubernetes.local.yaml"
+export REGISTRY_CONFIG_FILE="$REPO_DIR/kubernetes/settings/050-registry.local.yaml"
 export VAULT_CONFIG_FILE="$REPO_DIR/kubernetes/settings/100-vault.local.yaml"
+export KANIKO_CONFIG_FILE="$REPO_DIR/kubernetes/settings/100-kaniko.local.yaml"
 
 # Currently just one cluster can be configured.
 get_var "VM_NAME_PREFIX" "$VBOX_CONFIG_FILE" ".virtualbox .vm-prefix" ""

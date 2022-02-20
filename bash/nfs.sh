@@ -37,9 +37,10 @@ function ensure_nfs4_share() {
   if [ -d "$full_share_dir" ]; then
     log_warn "Directory '$full_share_dir' already exists. Not touching it, so make sure group '$owner_group' has enough permissions."
   else
-    sudo chown "$(whoami)":"$owner_group" "$full_share_dir"
+    sudo mkdir -p "$full_share_dir"
+    sudo chown -R "$(whoami)":"$owner_group" "$full_share_dir"
     log_info "Making sure directories and files created under $full_share_dir are owned by group '$owner_group'."
-    sudo chmod g+s "$full_share_dir"
+    #sudo chmod g+s "$full_share_dir"
   fi
 
   log_info "Checking if '$root_share_dir' is already shared."
@@ -49,7 +50,8 @@ function ensure_nfs4_share() {
     log_warn "A root share already exists in /etc/exports. Not able to correctly share now: $(grep "fsid=0" "/etc/exports")."
   else
     log_info "Sharing '$root_share_dir' with CIDR '$share_cidr'."
-    echo "$root_share_dir         $share_cidr(fsid=0,crossmnt,rw,root_squash,sync,no_subtree_check,insecure)" | sudo tee -a /etc/exports
+    #echo "$root_share_dir         $share_cidr(fsid=0,crossmnt,rw,root_squash,sync,no_subtree_check,insecure)" | sudo tee -a /etc/exports
+    echo "$root_share_dir         $share_cidr(fsid=0,rw,insecure,no_subtree_check,sync)" | sudo tee -a /etc/exports
   fi
 
   log_info "Checking if '$full_share_dir' is already shared."
@@ -57,7 +59,7 @@ function ensure_nfs4_share() {
     log_warn "Share directory '$full_share_dir' already configured in /etc/exports. Not overwriting it: $(grep "^$full_share_dir " "/etc/exports" | grep -v "^#")."
   else
     log_info "Sharing '$full_share_dir' with CIDR '$share_cidr'."
-    echo "$full_share_dir         $share_cidr(rw,all_squash,anonuid=1001,anongid=80,insecure,no_subtree_check)" | sudo tee -a /etc/exports
+    echo "$full_share_dir         $share_cidr(insecure,rw,all_squash,anonuid=1000,anongid=1000,no_subtree_check)" | sudo tee -a /etc/exports
   fi
 
   log_info "Activating share."

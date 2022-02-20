@@ -82,13 +82,14 @@ EOF
 
   kubeadm config images pull
   configure_network
-  create_os_user
   cp vimrc.temp /root/.vimrc
+
+  sudo mkdir -p /mnt/disks # local provisioner uses this location for local persistent volumnes
 
   install_guest_additions
   prepare_startup_script
   prepare_for_template
-
+  create_os_user
 }
 
 function prepare_startup_script() {

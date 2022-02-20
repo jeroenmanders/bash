@@ -1,4 +1,5 @@
 *.local
+*local/
 *.local.*
 .idea
 local-resources/
