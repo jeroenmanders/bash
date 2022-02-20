@@ -54,3 +54,9 @@ configure_kubernetes_cli
 #  PS1="${PS1} - \w${CSI}K${CSI}u\]\u \W $ "
 #}
 #configure_prompt
+
+alias k=kubectl
+export GOPATH=~/go
+export GOBIN=/usr/local/go/bin
+export GOBIN=/Users/jeroen_manders/go/bin
+

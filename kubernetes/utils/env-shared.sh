@@ -22,6 +22,19 @@ function get_host_only_MAC() {
   export MAC="${part1##* }"
 }
 
+function get_bridged_MAC() {
+  local vm_id="$1"
+  local part1="$(vboxmanage showvminfo --details "$vm_id" | grep -e '^NIC.*Type: 82545EM.*' | cut -d ',' -f 1)"
+  export MAC="${part1##* }"
+}
+
+function get_bridged_ip() {
+  local vm_name="$1"
+  get_vm_id "$vm_name"
+  get_bridged_MAC "$VM_ID"
+  export IP="$(VBoxManage guestproperty get kube-controller-1 "/VirtualBox/GuestInfo/Net/0/V4/IP" | cut -f2 -d " ")"
+}
+
 function get_vm_ip() {
   local vm_name="$1"
   get_vm_id "$vm_name"
