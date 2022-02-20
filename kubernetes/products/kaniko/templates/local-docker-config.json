@@ -1,0 +1,7 @@
+{
+  "auths": {
+    "${REGISTRY_HOSTNAME}:${REGISTRY_NODE_PORT}": {
+      "auth": "YTph"
+    }
+  }
+}
