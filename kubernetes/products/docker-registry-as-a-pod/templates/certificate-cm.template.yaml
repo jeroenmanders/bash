@@ -1,0 +1,10 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: docker-registry-certs
+data:
+  docker-registry.crt: |
+    AUTOMATICALLY-REPLACED
+  docker-registry.key: |
+    AUTOMATICALLY-REPLACED
