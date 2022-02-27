@@ -12,6 +12,22 @@ get_var "HELM_CHART_VERSION" "$VAULT_CONFIG_FILE" ".vault .helm .chart .version"
 get_var "HA_ENABLED" "$VAULT_CONFIG_FILE" ".vault .ha .enabled" ""
 get_var "HA_REPLICAS" "$VAULT_CONFIG_FILE" ".vault .ha .replicas" ""
 
+export ALT_NAMES="$(cat << EOF
+DNS.1 = ${SERVICE_NAME}
+DNS.2 = ${SERVICE_NAME}.${SERVICE_NAMESPACE}
+DNS.3 = ${SERVICE_NAME}.${SERVICE_NAMESPACE}.svc
+DNS.4 = ${SERVICE_NAME}.${SERVICE_NAMESPACE}.svc.cluster.local
+DNS.5 = '*.'"${SERVICE_NAME}"'-internal'
+DNS.6 = vault-0
+DNS.7 = vault-0.${SERVICE_NAMESPACE}
+DNS.8 = vault-1
+DNS.9 = vault-1.${SERVICE_NAMESPACE}
+DNS.10 = vault-2
+DNS.11 = vault-3.${SERVICE_NAMESPACE}
+IP.1 = 127.0.0.1
+EOF
+)"
+
 function _run_on_worker() {
   local hostname="$(hostname)"
   local mount_root="/mnt/disks"
@@ -96,15 +112,3 @@ generate_certificate
 run_yaml_files
 install_vault
 
-#vault operator unseal kP7oAgACmYdGhOKJnHZ9AAGPOP6mkbpPJjnv4jTUc4dp
-#vault operator unseal A4LhuTEYNgen3w1s6ccN5btfWdylY5Q9EVwOKlUwMy/W
-#vault operator unseal xgeLUeKoZLzLsbZUmjydZnxW2i+dpo0mdkJz0aJtRDPE
-#
-#/ $ vault operator init
-#Unseal Key 1: qiM/Hmja4HM9nBts2X/u/9G0efMUfizt9hPhxbmcVDhP
-#Unseal Key 2: kP7oAgACmYdGhOKJnHZ9AAGPOP6mkbpPJjnv4jTUc4dp
-#Unseal Key 3: A4LhuTEYNgen3w1s6ccN5btfWdylY5Q9EVwOKlUwMy/W
-#Unseal Key 4: xgeLUeKoZLzLsbZUmjydZnxW2i+dpo0mdkJz0aJtRDPE
-#Unseal Key 5: QJcdmpEcB6XxkWXrorz2ZaEIqwmLbmtzXGgu2zAltQ2v
-#
-# export VAULT_TOKEN="s.IDnJWmimJfIGl1hmQ86HMxkm"

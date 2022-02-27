@@ -1,9 +1,10 @@
 global:
   enabled: true
   tlsDisable: false
+server:
   extraEnvironmentVars:
     VAULT_CACERT: /vault/userconfig/vault-tls/vault.ca
-server:
+
   extraVolumes:
     - type: secret
       name: vault-tls

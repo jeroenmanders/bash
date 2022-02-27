@@ -20,9 +20,4 @@ extendedKeyUsage = serverAuth
 subjectAltName = @alt_names
 
 [alt_names]
-DNS.1 = ${SERVICE_NAME}
-DNS.2 = ${SERVICE_NAME}.${SERVICE_NAMESPACE}
-DNS.3 = ${SERVICE_NAME}.${SERVICE_NAMESPACE}.svc
-DNS.4 = ${SERVICE_NAME}.${SERVICE_NAMESPACE}.svc.cluster.local
-DNS.5 = *.${SERVICE_NAME}-internal
-IP.1 = 127.0.0.1
+$ALT_NAMES

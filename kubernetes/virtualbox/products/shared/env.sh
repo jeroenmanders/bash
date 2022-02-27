@@ -14,6 +14,18 @@ function generate_certificate() {
   [[ -z "$SERVICE_NAME" ]] && log_fatal "Environment variable 'SERVICE_NAME' is expected to be set in generate_certificate."
   [[ -z "$SERVICE_NAMESPACE" ]] && log_fatal "Environment variable 'SERVICE_NAMESPACE' is expected to be set in generate_certificate."
 
+  if [ -z "${ALT_NAMES-}" ]; then
+    ALT_NAMES="$(cat << EOF
+DNS.1 = ${SERVICE_NAME}
+DNS.2 = ${SERVICE_NAME}.${SERVICE_NAMESPACE}
+DNS.3 = ${SERVICE_NAME}.${SERVICE_NAMESPACE}.svc
+DNS.4 = ${SERVICE_NAME}.${SERVICE_NAMESPACE}.svc.cluster.local
+DNS.5 = '*.'"${SERVICE_NAME}"'-internal'
+IP.1 = 127.0.0.1
+EOF
+)"
+  fi
+  export ALT_NAMES
   local PRIVATE_KEY_FILE="certificates-local/$SERVICE_NAME.key"
   local CSR_FILE="certificates-local/$SERVICE_NAME-server.csr"
   local SSL_CONFIG_FILE="certificates-local/$SERVICE_NAME-ssl.conf"
@@ -56,6 +68,7 @@ function generate_certificate() {
   log_info "Generating certificate file."
   echo "$CERTIFICATE_DATA" | openssl base64 -d -A -out certificates-local/$SERVICE_NAME.crt
 
+  log_info "Installing certificate on host"
   kubectl config view --raw --minify --flatten \
     -o jsonpath='{.clusters[].cluster.certificate-authority-data}' | base64 -d > certificates-local/$SERVICE_NAME.ca
 

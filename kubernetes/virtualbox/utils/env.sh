@@ -7,13 +7,8 @@ this_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$this_dir"
 
 . ../env.sh
-
-. "$REPO_DIR/bash/nfs.sh"
-
 . ./env-shared.sh
-
-REPO_DIR="$(git rev-parse --show-toplevel)"
-. "$REPO_DIR"/kubernetes/env.sh
+. "$REPO_DIR/bash/nfs.sh"
 
 OVA_FILE="$REPO_DIR/local-resources/virtualbox/kubernetes-base/kubernetes-base.ovf"
 
@@ -118,6 +113,7 @@ function setup_cluster() {
 
   create_administrators
   install_tools
+  install_products
 }
 
 function create_workers() {
@@ -437,6 +433,21 @@ function install_tools() {
   else
     log_warn "Not installing local provisioner because setting 'install-local-provisioner' is not 'true'."
   fi
+}
+
+function install_products() {
+  get_var "PRODUCTS" "$K8S_CONFIG_FILE" ".kubernetes .clusters[0] .products" ""
+  for product in $(echo "$PRODUCTS" | yq -o json '.[]' | jq -cr); do
+    local name="$(echo "$product" | jq -r '.name')"
+    local install="$(echo "$product" | jq -r '."auto-install"')"
+    local file="$(echo "$product" | jq -r '."install-file"')"
+    if [ "$install" != "true" ]; then
+      log_info "Not auto-installing product '$name'."
+      continue
+    fi
+    log_info "Installing product '$name' from '$file'."
+    "$REPO_DIR/kubernetes/$file"
+  done
 }
 
 function get_random_node_internal_ip() {

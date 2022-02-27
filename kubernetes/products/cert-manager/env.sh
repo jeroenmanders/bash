@@ -3,10 +3,8 @@
 set -euo pipefail
 
 this_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+. "$this_dir/../../env.sh"
 
-. "$this_dir/../shared/env.sh"
-
-get_var "KANIKO_NAMESPACE" "$KANIKO_CONFIG_FILE" ".kaniko .namespace .name" ""
-
-export SERVICE_NAME="kaniko"
-export SERVICE_NAMESPACE="$KANIKO_NAMESPACE"
+if [ ! "$(which cmctl)" ]; then
+  log_fatal "Certificate Manager CLI 'cmctl' is not installed. You can install it using '$REPO_DIR/utils/install-cmctl.sh'."
+fi
