@@ -12,7 +12,6 @@ spec:
       - selector:
           dnsZones:
             - test.manders.be
-            #- manders.be
         dns01:
           # Valid values are None and Follow
           cnameStrategy: Follow
