@@ -2,6 +2,10 @@
 
 set -euo pipefail
 
+before_init_dir="$(pwd)"
+this_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$this_dir" || exit 1
+
 export LOG_LEVEL="INFO"
 export REPO_DIR="$(git rev-parse --show-toplevel)"
 
@@ -29,3 +33,5 @@ fi
 # The following resources can be installed using scripts under $REPO_DIR/utils
 export TERRAFORM="$REPO_DIR/local-resources/bin/terraform-$TERRAFORM_VERSION"
 export PACKER="$REPO_DIR/local-resources/bin/packer-$PACKER_VERSION"
+
+cd "$before_init_dir" || exit 1
