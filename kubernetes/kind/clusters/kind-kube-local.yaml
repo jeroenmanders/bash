@@ -18,6 +18,19 @@ nodes:
         # see https://kubernetes.io/docs/concepts/storage/volumes/#mount-propagation
         # default None
         propagation: None #HostToContainer
+    kubeadmConfigPatches:
+      - |
+        kind: InitConfiguration
+        nodeRegistration:
+          kubeletExtraArgs:
+            node-labels: "ingress-ready=true"
+      extraPortMappings:
+        - containerPort: 80
+          hostPort: 80
+          protocol: TCP
+        - containerPort: 443
+          hostPort: 443
+          protocol: TCP
   - role: worker
     image: kindest/node:v1.23.3@sha256:0cb1a35ccd539118ce38d29a97823bae8fcef22fc94e9e33c0f4fadcdf9d4059
   - role: worker
