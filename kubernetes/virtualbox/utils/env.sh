@@ -435,21 +435,6 @@ function install_tools() {
   fi
 }
 
-function install_products() {
-  get_var "PRODUCTS" "$K8S_CONFIG_FILE" ".kubernetes .clusters[0] .products" ""
-  for product in $(echo "$PRODUCTS" | yq -o json '.[]' | jq -cr); do
-    local name="$(echo "$product" | jq -r '.name')"
-    local install="$(echo "$product" | jq -r '."auto-install"')"
-    local file="$(echo "$product" | jq -r '."install-file"')"
-    if [ "$install" != "true" ]; then
-      log_info "Not auto-installing product '$name'."
-      continue
-    fi
-    log_info "Installing product '$name' from '$file'."
-    "$REPO_DIR/kubernetes/$file"
-  done
-}
-
 function get_random_node_internal_ip() {
   export LAST_VALUE="$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}')"
 }

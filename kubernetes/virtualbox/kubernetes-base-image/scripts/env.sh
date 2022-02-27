@@ -2,7 +2,8 @@
 
 set -euo pipefail
 
-VERSION=1.22.0
+# VERSION=1.22.0
+VERSION=1.23.3
 export DEBIAN_FRONTEND=noninteractive
 
 function get_guest_property() {

@@ -6,7 +6,7 @@ this_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$this_dir"
 
 REPO_DIR="$(git rev-parse --show-toplevel)"
-. "$REPO_DIR/kubernetes/env.sh"
+. "$REPO_DIR/kubernetes/virtualbox/env.sh"
 
 VBOX_DIR="$REPO_DIR/local-resources/virtualbox"
 

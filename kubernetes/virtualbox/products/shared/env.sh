@@ -3,7 +3,7 @@
 set -euo pipefail
 
 REPO_DIR="$(git rev-parse --show-toplevel)"
-. "$REPO_DIR"/kubernetes/utils/env.sh
+. "$REPO_DIR"/kubernetes/virtualbox/utils/env.sh
 
 get_var "REGISTRY_NAMESPACE" "$REGISTRY_CONFIG_FILE" ".registry .namespace" ""
 get_var "REGISTRY_NAME" "$REGISTRY_CONFIG_FILE" ".registry .service-name" ""

@@ -18,7 +18,7 @@ REPO_DIR="$(git rev-parse --show-toplevel)"
 
 cd "$current_dir" || exit 1
 
-get_var "KUBE_OS_USERNAME" "$this_dir/../settings/005-virtualbox.local.yaml" ".virtualbox .os-user .name" ""
+get_var "KUBE_OS_USERNAME" "$SETTINGS_DIR/005-virtualbox.local.yaml" ".virtualbox .os-user .name" ""
 
 . "$this_dir/env-shared.sh"
 
