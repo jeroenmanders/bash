@@ -1,0 +1,18 @@
+# Port mapping for NodePort: https://kind.sigs.k8s.io/docs/user/configuration/#extra-port-mappings
+---
+
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: pvc-example
+networking:
+  disableDefaultCNI: false
+
+nodes:
+  - role: control-plane
+    image: kindest/node:v1.23.3@sha256:0cb1a35ccd539118ce38d29a97823bae8fcef22fc94e9e33c0f4fadcdf9d4059
+  - role: worker
+    image: kindest/node:v1.23.3@sha256:0cb1a35ccd539118ce38d29a97823bae8fcef22fc94e9e33c0f4fadcdf9d4059
+  - role: worker
+    image: kindest/node:v1.23.3@sha256:0cb1a35ccd539118ce38d29a97823bae8fcef22fc94e9e33c0f4fadcdf9d4059
+  - role: worker
+    image: kindest/node:v1.23.3@sha256:0cb1a35ccd539118ce38d29a97823bae8fcef22fc94e9e33c0f4fadcdf9d4059
