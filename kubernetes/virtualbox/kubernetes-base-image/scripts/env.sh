@@ -2,10 +2,9 @@
 
 set -euo pipefail
 
-VERSION=1.22.0
+# VERSION=1.22.0
+VERSION=1.23.3
 export DEBIAN_FRONTEND=noninteractive
-export OS_USERNAME="${1:- }"
-export OS_USER_PUB_KEY="${2:- }"
 
 function get_guest_property() {
   local name="$1"
@@ -56,7 +55,12 @@ EOF
 
   sudo sysctl --system
   sudo apt-get update
-  sudo apt-get -y install curl apt-transport-https gnupg2 net-tools apt-transport-https jq containerd etcd-client
+  sudo apt-get -y install curl apt-transport-https gnupg2 net-tools apt-transport-https jq containerd etcd-client nfs-common
+
+  echo "Installing 'yq'."
+  sudo wget -qO /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
+  sudo chmod a+x /usr/local/bin/yq
+
   sudo mkdir -p /etc/containerd
   sudo containerd config default | sudo tee /etc/containerd/config.toml
 
@@ -67,9 +71,6 @@ EOF
 
   # Ensure swap is off after a restart
   sudo sed -i '/ swap / s/^\(.*\)$/#\1/g' /etc/fstab
-
-  #sudo apt-get update
-  #sudo apt-get install -y apt-transport-https curl
 
   curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | sudo apt-key add -
 
@@ -82,13 +83,14 @@ EOF
 
   kubeadm config images pull
   configure_network
-  create_os_user
   cp vimrc.temp /root/.vimrc
+
+  sudo mkdir -p /mnt/disks # local provisioner uses this location for local persistent volumnes
 
   install_guest_additions
   prepare_startup_script
   prepare_for_template
-
+  create_os_user
 }
 
 function prepare_startup_script() {
@@ -121,6 +123,9 @@ function prepare_for_template() {
 
   mkdir -p /opt/scripts
   cp -R . /opt/scripts/
+  cat > /opt/scripts/vars.local <<EOF
+OS_USERNAME=$OS_USERNAME
+EOF
 }
 
 function install_guest_additions() {
@@ -140,11 +145,20 @@ function install_guest_additions() {
 }
 
 function init_cluster() {
-  echo "---- INITIALIZING THE CLUSTER ----"
+  export CLUSTER_NAME="$1"
+
+  [[ -z "$CLUSTER_NAME" ]] && echo "First argument to init_cluster should be the cluster name!" >&2 && exit 1
+
+  echo "---- INITIALIZING CLUSTER '$CLUSTER_NAME' ----"
 
   init_server controller
 
-  kubeadm init --pod-network-cidr 192.168.0.0/16 --kubernetes-version 1.22.0 --control-plane-endpoint "$IP:6443" --apiserver-advertise-address "$IP"
+  < cluster-config.tpl.yaml envsubst > "/tmp/kube-init-config.yaml"
+  kubeadm init --config "/tmp/kube-init-config.yaml"
+
+  # Without config file (needed only to set the cluster name
+  # kubeadm init --config "/tmp/kube-init-config.yaml" --pod-network-cidr 192.168.0.0/16 --kubernetes-version 1.22.0 \
+  #  --control-plane-endpoint "$IP:6443" --apiserver-advertise-address "$IP"
 
   echo "Configuring kubeconfig for root."
   export KUBECONFIG=/root/.kube/config
@@ -159,6 +173,11 @@ function init_cluster() {
 
   #echo -e "\n --- Enabling the kubelet service ---\n"
   #systemctl enable kubelet
+  echo "Copying kubernetes-admin kubeconfig to $OS_USERNAME."
+  local user_home="$(eval echo ~"$OS_USERNAME")"
+  mkdir -p "$user_home/.kube"
+  cp "$KUBECONFIG" "$user_home/.kube/"
+  chown -R "$OS_USERNAME" "$user_home/.kube"
 
   echo -e "\n The cluster should be ready (control plane might still be in 'NotReady').:\n"
   kubectl get nodes
@@ -236,12 +255,14 @@ function join_cluster() {
 }
 
 function create_os_user() {
-  echo "Creating OS user $OS_USERNAME."
-  useradd -s /usr/bin/bash "$OS_USERNAME"
-  echo "%$OS_USERNAME ALL=(ALL) NOPASSWD: ALL" >>"/etc/sudoers.d/$OS_USERNAME"
+  echo "Creating group 'host-share-users' with ID '$OS_GROUP_ID'."
+  groupadd -g $OS_GROUP_ID "host-share-users"
+  echo "Creating OS user '$OS_USERNAME' with ID '$OS_USER_ID' and group '$OS_GROUP_ID'."
+  useradd -s /usr/bin/bash "$OS_USERNAME" -u "$OS_USER_ID" -g "$OS_GROUP_ID"
+  echo "$OS_USERNAME ALL=(ALL) NOPASSWD: ALL" >>"/etc/sudoers.d/$OS_USERNAME"
   local user_home="$(eval echo ~"$OS_USERNAME")"
   mkdir -p "$user_home/.ssh"
-  chown "$OS_USERNAME" "$user_home/.ssh"
+  chown -R "$OS_USERNAME" "$user_home"
   [ -n "$OS_USER_PUB_KEY" ] && echo "$OS_USER_PUB_KEY" >>"$user_home/.ssh/authorized_keys"
   cp vimrc.temp "$user_home/.vimrc"
 }

@@ -3,6 +3,16 @@ variable "os_username" {
   type        = string
 }
 
+variable "os_user_id" {
+  description = "User ID of the user that will be added to the virtual machine."
+  type        = string
+}
+
+variable "os_group_id" {
+  description = "Group ID for the user that will get owner-rights on the host-share."
+  type        = string
+}
+
 variable "os_user_pub_key" {
   description = "Public key to grant the user access to the instances."
   type        = string

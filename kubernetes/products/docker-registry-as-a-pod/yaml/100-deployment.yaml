@@ -1,0 +1,45 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: docker-repository
+  labels:
+    app: docker-repository
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: docker-repository
+  template:
+    metadata:
+      labels:
+        app: docker-repository
+    spec:
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+      containers:
+        - image: registry:2
+          name: docker-repository
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: REGISTRY_HTTP_TLS_CERTIFICATE
+              value: "/certificates/docker-registry.crt"
+            - name: REGISTRY_HTTP_TLS_KEY
+              value: "/certificates/docker-registry.key"
+          ports:
+            - containerPort: 5000
+          volumeMounts:
+            - name: certificates
+              mountPath: /certificates
+            - name: registry
+              mountPath: /var/lib/registry
+      volumes:
+        - name: certificates
+          configMap:
+            name: docker-registry-certs
+            defaultMode: 420
+
+        - name: registry
+          persistentVolumeClaim:
+            claimName: nfs-docker-registry

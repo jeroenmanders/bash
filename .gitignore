@@ -1,4 +1,6 @@
 *.local
-*.local.yml
+*local/
+*.local.*
 .idea
 local-resources/
+*-VBoxHeadless-*.log

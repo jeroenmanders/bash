@@ -1,0 +1,25 @@
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-staging
+spec:
+  acme:
+    email: jeroen.letsancrypt@manders.be
+    server: https://acme-staging-v02.api.letsencrypt.org/directory
+    privateKeySecretRef:
+      name: letsencrypt-issuer-account-key
+    solvers:
+      - selector:
+          dnsZones:
+            - test.manders.be
+        dns01:
+          # Valid values are None and Follow
+          cnameStrategy: Follow
+          route53:
+            region: eu-west-1
+            accessKeyID: AKIA6QURUQJCGQN7MFM6
+            #hostedZoneID: Z1HWLUS1Y1TF3J # manders.be
+            hostedZoneID: Z0254191299BPSFZ2F8PO # test.manders.be
+            secretAccessKeySecretRef:
+              name: aws-cert-mgr
+              key: secret-access-key

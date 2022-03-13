@@ -1,0 +1,33 @@
+global:
+  enabled: true
+  tlsDisable: false
+server:
+  extraEnvironmentVars:
+    VAULT_CACERT: /vault/userconfig/vault-tls/vault.ca
+
+  extraVolumes:
+    - type: secret
+      name: vault-tls
+
+  ha:
+    enabled: true
+    replicas: 3
+    raft:
+      enabled: true
+      setNodeId: true
+      config: |
+        ui = true
+
+        listener "tcp" {
+          address = "0.0.0.0:8200"
+          cluster_address = "0.0.0.0:8201"
+          tls_cert_file = "/vault/userconfig/vault-tls/vault.crt"
+          tls_key_file = "/vault/userconfig/vault-tls/vault.key"
+          tls_client_ca_file = "/vault/userconfig/vault-tls/vault.ca"
+        }
+
+        storage "raft" {
+          path = "/vault/data"
+        }
+
+        service_registration "kubernetes" {}

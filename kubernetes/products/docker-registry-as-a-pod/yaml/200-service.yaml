@@ -1,0 +1,14 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: docker-repository
+spec:
+  #type: ClusterIP
+  type: NodePort
+  selector:
+    app: docker-repository
+  ports:
+    - port: 5000
+      targetPort: 5000
+      nodePort: ${REGISTRY_NODE_PORT}
