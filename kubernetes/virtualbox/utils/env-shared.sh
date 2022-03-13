@@ -44,6 +44,7 @@ function get_vm_ip() {
 
 function conn_vm() {
   local vm_name="$1"
+  get_var "KUBE_OS_USERNAME" "$SETTINGS_DIR/005-virtualbox.local.yaml" ".virtualbox .os-user .name" ""
   get_vm_ip "$vm_name"
 
   echo "Connecting with $KUBE_OS_USERNAME@$IP"

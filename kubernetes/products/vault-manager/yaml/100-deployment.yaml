@@ -1,0 +1,52 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vault-manager
+  labels:
+    app: vault-manager
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vault-manager
+  template:
+    metadata:
+      labels:
+        app: vault-manager
+    spec:
+      subdomain: vault-internal
+#      securityContext:
+#        runAsUser: 1000
+#        runAsGroup: 1000
+      containers:
+        #- image: alpine
+        - image: hashicorp/vault:1.9.2
+          name: vault-manager
+          command: ["/bin/sleep"]
+          args: ["3600"]
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: REGISTRY_HTTP_TLS_CERTIFICATE
+              value: "/certificates/docker-registry.crt"
+            - name: REGISTRY_HTTP_TLS_KEY
+              value: "/certificates/docker-registry.key"
+          volumeMounts:
+            - name: vault-cert
+              mountPath: /etc/ssl/my-certs
+              readOnly: true
+          lifecycle:
+            postStart:
+              exec:
+                command:
+                  - /bin/sh
+                  - -c
+                  - cp /etc/ssl/my-certs/* /etc/ssl/certs/
+      volumes:
+        - name: vault-cert
+          secret:
+            secretName: vault-tls
+#            items:
+#              - key: vault.crt
+#                path: vault.crt
+#                mode: 0444

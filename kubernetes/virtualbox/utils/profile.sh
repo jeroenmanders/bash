@@ -7,20 +7,18 @@
 # conn_worker_1  # Connects the the kube-controller-1 instance with the user that w
 # conn_worker_2  # Connects the the kube-controller-1 instance with the user that w
 
-this_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-current_dir="$(pwd)"
-cd "$this_dir" || exit 1
-
-REPO_DIR="$(git rev-parse --show-toplevel)"
+profile_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+before_profile_dir="$(pwd)"
+cd "$profile_dir"
+REPO_DIR="$(git rev-parse --show-toplevel)";
 
 . "$REPO_DIR/bash/source/logging.sh"
 . "$REPO_DIR/bash/source/yaml.sh"
 
-cd "$current_dir" || exit 1
+cd "$before_profile_dir" || exit 1
 
-get_var "KUBE_OS_USERNAME" "$SETTINGS_DIR/005-virtualbox.local.yaml" ".virtualbox .os-user .name" ""
+. "$profile_dir/env-shared.sh"
 
-. "$this_dir/env-shared.sh"
 
 # Source this script from your ~/.bash_profile or ~/.bashrc
 #   Add the OS-username for the Kubernetes VirtualBox nodes as an argument

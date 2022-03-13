@@ -12,12 +12,6 @@ cd "$this_dir" || exit 1
 . ../env.sh
 
 export CLUSTER_MODE="VIRTUALBOX"
-export MAIN_CONFIG_FILE="$SETTINGS_DIR/001-settings.local.yaml"
-export VBOX_CONFIG_FILE="$SETTINGS_DIR/005-virtualbox.local.yaml"
-export K8S_CONFIG_FILE="$SETTINGS_DIR/010-kubernetes.local.yaml"
-export REGISTRY_CONFIG_FILE="$SETTINGS_DIR/050-registry.local.yaml"
-export VAULT_CONFIG_FILE="$SETTINGS_DIR/100-vault.local.yaml"
-export KANIKO_CONFIG_FILE="$SETTINGS_DIR/100-kaniko.local.yaml"
 
 # Currently just one cluster can be configured.
 get_var "VM_NAME_PREFIX" "$VBOX_CONFIG_FILE" ".virtualbox .vm-prefix" ""

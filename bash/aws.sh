@@ -54,3 +54,40 @@ function set_aws_profile() {
         echo "Code is valid until $expiration";
     fi;
 }
+
+function conn_aws() {
+  local instance_name=""
+  unset AWS_INSTANCES
+  local VAR_FILE="$SHARED_REPO_DIR/data.local/cloud/aws-instances.yaml"
+  if [ ! -f "$VAR_FILE" ]; then
+    log_error "File not found: $VAR_FILE"
+    return 1
+  fi;
+  import_args "$@"
+
+  get_var "AWS_INSTANCES" "$VAR_FILE" ".instances" ""
+  local instances=""
+  for instance in $(echo "$AWS_INSTANCES" | yq -o json | jq -cr '.[]'); do
+      local name="$(echo "$instance" | jq -r '.name')"
+      local id="$(echo "$instance" | jq -r '.id')"
+
+      if [ "$instance_name" == "$name" ]; then
+        aws ssm start-session --target "$id"
+        return
+      fi;
+      [[ -n "$instances" ]] && instances="$instances"$'\n'
+      instances="$instances$id:$name"
+  done
+  echo "instances: $instances"
+  IFS=$'\n' && select instance in $instances; do
+      break
+  done
+  [[ -z "$instance" ]] && return
+
+  IFS=: read -r id name <<< "$instance"
+
+  log_info "Connecting to instance $id"
+  aws ssm start-session --target "$id"
+
+  unset AWS_INSTANCES
+}

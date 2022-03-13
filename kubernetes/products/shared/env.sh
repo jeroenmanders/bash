@@ -2,8 +2,13 @@
 
 set -euo pipefail
 
-REPO_DIR="$(git rev-parse --show-toplevel)"
+this_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+. "$this_dir/../../env.sh"
+
+if [ "${CLUSTER_MODE-}" == "VIRTUALBOX" ]; then
 . "$REPO_DIR"/kubernetes/virtualbox/utils/env.sh
+fi
 
 get_var "REGISTRY_NAMESPACE" "$REGISTRY_CONFIG_FILE" ".registry .namespace" ""
 get_var "REGISTRY_NAME" "$REGISTRY_CONFIG_FILE" ".registry .service-name" ""
